@@ -26,7 +26,7 @@ infixr 4 <.>
         f : uf -> df
         f = (passforward lens2) . (passforward lens1)
         
-        b : (x : uf) -> (db (f x)) -> (ub x)
+        b : (x : uf) -> (db (f x)) -> m (ub x)
         b x d = do
           middle <- (passback lens2) (passforward lens1 $ x) d
           (passback lens1) x middle
