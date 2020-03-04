@@ -1,0 +1,507 @@
+\documentclass[11pt, oneside, article]{memoir}
+
+\settrims{0pt}{0pt} % page and stock same size
+\settypeblocksize{*}{35.5pc}{*} % {height}{width}{ratio}
+\setlrmargins{*}{*}{1} % {spine}{edge}{ratio}
+\setulmarginsandblock{1.1in}{1.4in}{*} % height of typeblock computed
+\setheadfoot{\onelineskip}{2\onelineskip} % {headheight}{footskip}
+\setheaderspaces{*}{1.5\onelineskip}{*} % {headdrop}{headsep}{ratio}
+\checkandfixthelayout
+
+\usepackage[centertags,sumlimits,intlimits,namelimits,reqno]{amsmath}
+\usepackage{dutchcal}
+\usepackage{latexsym}
+\usepackage{minted}
+\usepackage{amsfonts,amsthm,amssymb}
+\usepackage{mathtools}
+\usepackage{outline}
+\usepackage[cal=euler,scr=rsfso]{mathalfa}
+\usepackage[boxslash]{stmaryrd}
+\usepackage{newpxtext}\linespread{1.10}
+%\usepackage{exscale}
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+%\usepackage{breakcites}
+\usepackage[colorlinks,linkcolor=darkblue,citecolor=darkblue,urlcolor=darkblue,breaklinks=true]{hyperref}
+\usepackage{tikz}
+\usepackage[capitalize]{cleveref}
+\usepackage[backend=biber, maxbibnames = 10, style = alphabetic]{biblatex}
+\DeclareMathAlphabet{\mathpzc}{OT1}{pzc}{m}{it}
+\usepackage[color=white]{todonotes}
+\usepackage{xstring}
+\usepackage{ebproof}
+\usepackage[export]{adjustbox} %vertical align includegraphics
+\usepackage{scalefnt}
+\usepackage{anyfontsize} %arbitrary font size
+
+%% code from mathabx.sty and mathabx.dcl
+\DeclareFontFamily{U}{mathx}{\hyphenchar\font45}
+\DeclareFontShape{U}{mathx}{m}{n}{
+      <5> <6> <7> <8> <9> <10>
+      <10.95> <12> <14.4> <17.28> <20.74> <24.88>
+      mathx10
+      }{}
+\DeclareSymbolFont{mathx}{U}{mathx}{m}{n}
+\DeclareFontSubstitution{U}{mathx}{m}{n}
+\DeclareMathAccent{\widecheck}{0}{mathx}{"71}
+
+% cleveref %
+  \newcommand{\creflastconjunction}{, and\nobreakspace} % serial comma
+  
+
+% tikz %
+  \usetikzlibrary{ 
+  	cd,
+  	math,
+  	decorations.markings,
+		decorations.pathreplacing,
+  	positioning,
+	 	circuits.logic.US,
+ 		arrows.meta,
+  	shapes,
+		shadows,
+		shadings,
+  	calc,
+  	fit,
+  	quotes,
+  	intersections,
+  }
+
+% biblatex %
+  \addbibresource{Library20180621.bib} 
+
+% enumitem %
+  \setlist{itemsep=-1pt}
+	\setlist[description]{leftmargin=0em, itemindent=2em}
+	
+%-------------------------------------------------------------------------
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter] %change [] to chapter if we want to change global numbering
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{construction}[theorem]{Construction}
+\newtheorem{notation}[theorem]{Notation}
+\newtheorem{axiom}{Axiom}
+\newtheorem*{axiom*}{Axiom}
+
+\theoremstyle{remark}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{warning}[theorem]{Warning}
+
+\crefalias{chapter}{section}
+
+
+
+
+%------------------Begin author macros-----------------------
+
+\newcommand{\Set}[1]{\mathrm{#1}}%a named set
+\newcommand{\ord}[1]{\underline{#1}}%a natural number, considered as a finite set
+\newcommand{\const}[1]{\mathtt{#1}}%a constant, named element of a set, sort of thing
+\newcommand{\cat}[1]{\mathcal{#1}}%a generic category
+\newcommand{\ccat}[1]{\mathcal{#1}}%a generic bicategory
+\newcommand{\Cat}[1]{{\mathsf{#1}}}%a named category
+\newcommand{\CCat}[1]{\mathbb{\StrLeft{#1}{1}}\Cat{\StrGobbleLeft{#1}{1}}}%a named bicategory; does not seem to work in section headers...
+\newcommand{\funn}[1]{\mathrm{#1}}%a function
+\newcommand{\funr}[1]{{#1}}%a generic functor
+\newcommand{\Funr}[1]{\mathsf{#1}}%a named functor
+\newcommand{\ffunr}[1]{\mathbf{#1}}%a generic 2-functor
+
+\DeclareMathOperator{\ob}{\Set{Ob}}
+\DeclareMathOperator{\dom}{dom}
+\DeclareMathOperator{\cod}{cod}
+\DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator{\coker}{coker}
+\DeclareMathOperator*{\colim}{colim}
+\DeclareMathOperator{\im}{im}
+\DeclareMathOperator{\inc}{inc}
+\DeclarePairedDelimiter{\pair}{\langle}{\rangle}
+\DeclarePairedDelimiter{\copair}{[}{]}
+\DeclarePairedDelimiter{\classify}{\ulcorner}{\urcorner}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\church}{\llbracket}{\rrbracket}
+
+
+  \definecolor{darkblue}{rgb}{0,0,0.7} 
+  \newcommand{\define}[1]{\emph{#1}}
+  \newcommand{\mc}{\mathcal}
+  \newcommand{\ot}{\otimes}
+  \newcommand{\hooklongrightarrow}{\lhook\joinrel\longrightarrow}
+  \DeclareMathOperator\corel{{Corel}}
+
+
+\newcommand{\rr}{{\mathbb{R}}}
+\newcommand{\oo}{{\mathbb{O}}}
+\newcommand{\rel}[1][\smset]{\Cat{Rel}_{#1}}
+\newcommand{\rrel}[1]{\CCat{Rel}_{#1}}
+\newcommand{\prt}{\Funr{Prt}}
+
+\newcommand{\hyp}{\Cat{outer}}
+\newcommand{\hcca}[1][-]{A_{#1}}
+\newcommand{\cahc}[1][-]{\cat{H}_{#1}}
+\newcommand{\alg}{\text{--}\Cat{Alg}}
+\newcommand{\aalg}[1][]{\text{--}\CCat{Alg}}
+\newcommand{\rgcat}{\Cat{RgCat}}
+\newcommand{\rgcalc}{\Cat{RgCalc}}
+\newcommand{\rrgcat}[1][]{\CCat{RgCat}}
+\newcommand{\regbicat}{\Cat{RgBicat}}
+
+\newcommand{\syn}{\ffunr{syn}}
+\newcommand{\prd}{\ffunr{prd}}
+
+\newcommand{\longeq}{=\joinrel=}
+\newcommand{\lsh}[2][T]{{#2}_!}%the first argument is unused for now
+\newcommand{\ust}[2][T]{{#2}^*}%the first argument is unused for now
+\newcommand{\lst}[2][T]{{#2}_*}%the first argument is unused for now
+
+\newcommand{\tn}[1]{\textnormal{#1}}
+
+\newcommand{\id}{\funn{id}}
+\newcommand{\finset}{\Cat{FinSet}}
+\newcommand{\smset}{\Cat{Set}}
+\newcommand{\cospan}{\Cat{Cospan}}
+\newcommand{\ccospan}[1][]{\CCat{Cospan}_{#1}}
+\newcommand{\cocospan}[1][]{\ccospan[#1]\oop}
+\newcommand{\Fam}[1]{\Cat{Fam}_{#1}} 
+%\newcommand{\arity}[1][\Lambda]{\Cat{Ar}_{#1}}
+%\newcommand{\sspan}[1][\Lambda]{\CCat{Span}\arity[#1]}
+\newcommand{\poset}{\Cat{Poset}}
+\newcommand{\pposet}{\CCat{Poset}}
+\newcommand{\slat}{\Cat{SupLat}}
+\newcommand{\ladj}{\Cat{LAdj}}% the category of left adjoints
+\newcommand{\radj}{\Cat{RAdj}}% the category of left adjoints
+\newcommand{\sslat}{\CCat{SupLat}}
+\newcommand{\jslat}{\Cat{JLat}}
+\newcommand{\jjslat}{\CCat{JLat}}
+\newcommand{\smcat}{\Cat{Cat}}
+\newcommand{\ssmcat}{\CCat{Cat}}
+\newcommand{\rela}[1]{\Set{Rel}_{#1}}
+\newcommand{\func}[1]{\cat{R}_{#1}}
+\newcommand{\bij}[1]{\Set{Bij}_{#1}}
+\newcommand{\core}{\Cat{Core}}
+\newcommand{\grpd}{\Cat{Grpd}}
+\newcommand{\disc}{\Cat{Disc}}
+\newcommand{\hhyp}{\CCat{outer}}
+\newcommand{\of}{\const{OF}}
+\newcommand{\io}{\const{io}}
+\newcommand{\ff}{\const{ff}}
+\newcommand{\thy}{\Funr{Th}}
+\newcommand{\str}{\const{str}}
+\newcommand{\Th}{\Funr{Th}}
+\newcommand{\singleton}{\{1\}}
+\newcommand{\true}{\const{true}}
+\newcommand{\false}{\const{false}}
+
+\newcommand{\ol}[1]{\overline{#1}}
+\newcommand{\comp}{\mathtt{comp}}
+\newcommand{\conj}[1]{\widecheck{#1}}
+
+\newcommand{\runitor}{\mathfrak{r}}
+\newcommand{\lunitor}{\mathfrak{l}}
+
+\newcommand{\ffrg}{\CCat{FRg}}
+\newcommand{\calc}{P}
+
+\newcommand{\zero}{O}
+
+\newcommand{\out}{\mathrm{out}}
+\newcommand{\cocolon}{:\!}
+\newcommand{\iso}{\cong}
+\newcommand{\too}{\longrightarrow}
+\newcommand{\tto}{\rightrightarrows}
+\newcommand{\To}[1]{\xrightarrow{#1}}
+\newcommand{\Too}[1]{\To{\;\;#1\;\;}}
+\newcommand{\from}{\leftarrow}
+\newcommand{\From}[1]{\xleftarrow{#1}}
+\newcommand{\tofrom}{\leftrightarrows}
+\newcommand{\surj}{\twoheadrightarrow}
+\newcommand{\inj}{\rightarrowtail}
+\newcommand{\frsurj}{\twoheadleftarrow}
+\newcommand{\frinj}{\leftarrowtail}
+\newcommand{\ul}[1]{\underline{#1}}
+\renewcommand{\ss}{\subseteq}
+\newcommand{\imp}{\Rightarrow}
+
+\newcommand{\op}{^\mathrm{op}}
+\newcommand{\co}{^\mathrm{co}}
+\newcommand{\inv}{^{-1}}
+\newcommand{\tp}{^\dagger}
+\newcommand{\mono}{^\mathrm{mono}}
+\newcommand{\slice}[1]{_{/#1}}
+
+\newcommand{\cp}{\mathbin{\fatsemi}}
+\newcommand{\tens}{\mathbin{\color{gray}\cdot}}
+\newcommand{\unit}{\diamond}
+
+\newcommand{\yon}{y}
+
+\newcommand{\powset}{\cat{P}}
+\newcommand{\powfin}{\powset_{f}}
+\newcommand{\poly}{\Cat{Poly}}
+\newcommand{\lens}{\Cat{Lens}}
+
+\newcommand{\nn}{\mathbb{N}}
+\newcommand{\zz}{\mathbb{Z}}
+
+\newcommand{\bundle}[2]{\begin{bsmallmatrix}#1\\#2\end{bsmallmatrix}}
+
+\newcommand{\step}[1]{\goodbreak\bigskip\begin{center}------\quad\textbf{#1}\quad------\end{center}\vspace{-.1in}\nopagebreak}
+\newcommand{\commentout}[1]{}
+
+\newcommand{\adj}[5][30pt]{%[size] Cat L, Left, Right, Cat R.
+\begin{tikzcd}[ampersand replacement=\&, column sep=#1]
+  #2\ar[r, shift left=5pt, "{#3}"]\ar[r, phantom, "\Rightarrow" yshift=-.6pt]\&
+  #5\ar[l, shift left=5pt, "{#4}"]
+\end{tikzcd}
+}
+
+\newcommand{\adjr}[5][30pt]{%[size] Cat R, Right, Left, Cat L.
+\begin{tikzcd}[ampersand replacement=\&, column sep=#1]
+  #2\ar[r, shift left=5pt, "{#3}"]\ar[r, phantom, "\Leftarrow" yshift=-.6pt]\&
+  #5\ar[l, shift left=5pt, "{#4}"]
+\end{tikzcd}
+}
+
+\newcommand{\pb}[1][very near start]{\ar[dr, phantom, #1, "\lrcorner"]}
+
+\def\sub{\begin{outline}\item}
+\def\next{\item}
+\def\endsub{\end{outline}}
+
+\newcommand{\houroffset}{5}
+\newcommand{\minuteoffset}{5}
+\newcounter{currentmin}[section]
+\newcounter{currenthour}[section]
+\setcounter{currentmin}{\minuteoffset}
+\setcounter{currenthour}{\houroffset}
+\newcommand{\fakeletter}{{\color{white}s}}
+\newcommand{\mins}[1]
+	{\hfill #1%
+	\ifthenelse{\equal{#1}{1}}
+		{ min\fakeletter}%
+		{ mins}%
+	\addtocounter{currentmin}{#1}%
+	\ifthenelse{\value{currentmin}>59}%
+		{\addtocounter{currentmin}{-60}\addtocounter{currenthour}{1}}%
+		{}%
+	}
+\newcommand{\timecheck}
+	{\fakeletter\hfill \fbox{\emph{time check}: 
+	\arabic{currenthour}:%
+	\ifthenelse{\value{currentmin}<10}
+		{0\arabic{currentmin}}
+		{\arabic{currentmin}}
+	\\
+	}}
+
+\begin{document}
+
+\title{Mode dependent dynamical systems and polynomial functors}
+
+\author{David I. Spivak}
+
+%========= Title =========%
+\maketitle
+
+\timecheck
+\sub Introduction
+	\sub Motivation \mins{4}
+		\sub Want single formalism for many things:
+			\sub Bonding of atoms
+			\next Opening and closing of eyes
+			\next Busy and ready in a bureaucracy
+			\next Connecting to internet using different cell towers
+			\endsub
+		\next Motto: wiring diagrams, where systems can choose who they wire to based on their internal states
+		\endsub
+	\next Relation to David Jaz's talks\mins{3}
+		\sub Recall
+			\sub Generalized lens setup $A\colon\cat{C}\op\to\smcat$
+  		\next Apply a variant of the Grothendieck construction to get $\lens_A$
+			\next Objects: $(C,A)$, morphisms $(f\colon C\to C', f^\sharp\colon f^*A'\to A)$. 
+			\endsub
+		\next Today, $\cat{C}\coloneqq\finset$ or $\cat{C}\coloneqq\smset$ and $A\coloneqq\cat{C}/-$.
+		\endsub
+	\next Plan\mins{3}
+		\sub Talk about the category $\poly$
+		\next Give an example of using force to break something
+		\endsub
+	\endsub
+\timecheck
+\next The category $\poly$
+	\sub Definition of $\poly$ \mins{6}
+		\sub Full subcategory of $\finset\to\finset$ spanned by sums of representables.
+		\next $\poly_{\smset}$ similar, replacing $\finset$ by $\smset$.
+			\sub Objects: $P=\sum_{i:P(1)}\yon^{p_i}$
+  		\next Morphisms: $\poly(P,Q)=\prod_{i:P(1)}Q(p_i)$.
+			\next Morphisms between monomials: lens maps
+			\endsub
+		\endsub
+	\timecheck
+	\next Example: stream producers and transducers \mins{4}
+		\sub Stream transducers
+			\sub Definition: An \emph{$(A,B)$-stream transducer} consists of
+  			\sub A set $S$, ``states''
+  			\next Functions $r\colon S\to B$ and $u\colon S\to S$.
+  			\next Initialized $s_0:S$
+  			\next $s_{n+1}=u(s_n)$, $b_n=r(s_n)$.
+  			\endsub
+			\next Map of polynomials $S\yon^S\to B\yon^A$.
+			\endsub
+		\next Special case: stream producer
+			\sub A \emph{$B$-stream producer} is a $(1, B)$-stream transducer
+  		\next Map of polynomials $S\yon^S\to B\yon$.
+			\endsub
+		\endsub
+	\timecheck
+	\next Properties of $\poly$
+		\sub Has finite products and coproducts given by $0,+,1,\times$ \mins{2}
+		\next Has a string of adjoints\mins{4}
+\[
+\begin{tikzcd}[column sep=60pt]
+  \finset
+  	\ar[r, shift left=8pt, "n" description]
+		\ar[r, shift left=-24pt, "n\yon"']&
+  \poly
+  	\ar[l, shift right=24pt, "P(0)"']
+  	\ar[l, shift right=-8pt, "P(1)" description]
+	\ar[l, phantom, "\scriptstyle\Rightarrow"]
+	\ar[l, phantom, shift left=16pt, "\scriptstyle\Leftarrow"]
+	\ar[l, phantom, shift right=16pt, "\scriptstyle\Rightarrow"]
+\end{tikzcd}
+\]
+and both functors out of $\finset$ are fully faithful (roundtrips on $\finset$ side are isos).
+		\next Composition monoidal product: $P\circ Q$. \mins{1}
+		\next Has $(\otimes,[-,-])$ adjunction\mins{4}
+			\sub $\otimes$ is given by Day convolution of the Cartesian monoidal structure on $\finset$.
+				\sub On representables: $\yon^a\otimes\yon^b=\yon^{ab}$
+				\next Distributive
+				\next So $(3\yon^4+4\yon^2)\otimes(\yon^3+2)=3\yon^{12}+6+4\yon^6+8.$
+				\next From a bundle point of view: multiply bundles.
+				\endsub
+			\next $[P,Q]\coloneqq\prod_{i:P(1)}Q\circ(p_i\yon)$\mins{4}
+				\sub Example: $[\yon^n,\yon]=n\yon$ and $[n\yon,\yon]=\yon^n$.
+				\next $\poly(P\otimes A,Q)\cong\poly(P,[A,Q])$.
+				\endsub
+			\endsub
+		\endsub
+	\endsub
+	\timecheck
+\next Example
+	\sub Simple wiring diagrams
+		\sub Mon
+		\endsub
+	\endsub
+
+\endsub
+
+
+\begin{minted}{Idris}
+S = Work Int Int | Ready
+O = Input | Busy | Output Int
+
+TS : S -> Type
+I  : O -> Type
+
+TS _         = S
+I Input      = Int Int
+I Busy       = ()
+I (Output _) = ()
+
+Add : Poly (S, TS) -> (O, I)
+Add : (s : S) -> (o : O, I o -> TS s)
+
+Add (Work 0 n)     = (Output n, \ ()  -> Ready)
+Add (Work (m+1) n) = (Busy,     \ ()  -> Work m (n+1))
+Add Ready          = (Input, \ (m, n) -> Work mn) 
+\end{minted}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%\next The category $\poly$
+%	\sub As dependent lenses $\bundle{I}{O}$
+%		\sub Morphisms are $(f\colon O\to O',f^\sharp\colon f^*I'\to I)$
+%		\endsub
+%	\next Another formulation: polynomials functors and natural transformations
+%		\sub $\bundle{I}{O}$ corresponds to functor $\smset\to\smset$
+%		\next Namely, send $X\in\smset$ to $\poly\left(\bundle{X}{1},\bundle{I}{O}\right)$
+%		\endsub
+%	\next Example: streams in $a$ with carrier $s$ are maps $sx^s\to ax$.
+%	\next The functor $P\mapsto P(1)\colon\poly\to\smset$
+%		\sub Left adjoint to constant $s\mapsto s$
+%			\sub Constant $\smset\to\poly$ is fully faithful
+%			\item Unit: $\eta_P\colon P\to P(1)$.
+%			\endsub
+%		\item Right adjoint to linear $s\mapsto sx$
+%			\sub Linear $\smset\to\poly$ is fully faithful
+%			\item Counit: $\epsilon_P\colon P(1)x\to P$.
+%			\endsub
+%		\item Also preserves $\otimes$.
+%		\endsub
+%	\next Coproducts and products
+%  	\sub $\poly(x^n, -)$ commutes with coproducts and products
+%		\next We can use this to get a combinatorial formula for morphisms
+%		\begin{align*}
+%			\poly(P,Q)&=
+%			\poly\left(\sum_{i:P(1)}x^{p_i},\;\sum_{j:Q(1)}x^{q_j}\right)\\&=
+%			\prod_{i:P(1)}\poly\left(x^{p_i},\;\sum_{j:Q(1)}x^{q_j}\right)\\&=
+%			\prod_{i:P(1)}\sum_{j(i):Q(1)}\poly\left(x^{p_i},\;x^{q_j}\right)\\&=
+%			\prod_{i:P(1)}\sum_{j(i):Q(1)}\smset(q_j,p_i)
+%		\end{align*}
+%		\endsub
+%	\endsub
+%\item Other cool properties
+%	\sub All limits
+%	\next Another distributive monoidal structure
+%		\sub ``Dirichlet product''
+%		\next $x^p\otimes x^q=x^{pq}$, distributing over $+$
+%		\next Easy to understand in bundle picture: 
+%		\endsub
+%	\next Another nonsymmetric monoidal structure
+%		\sub Composition of functors, composition of polynomials; unit = $x$
+%		\next Note that $P\odot 1=P(1)$.
+%		\next $(P_1+P_2)\odot Q = (P_1\odot Q)+(P_2\odot Q)$
+%		\next $(P\odot Q)R \to P\odot (QR)$, i.e.\ $P\odot-$ has a strength over $\times$
+%		\endsub
+%	\next The functor $-\odot1\colon\poly\to\smset$
+%		\sub Has fully faithful right adjoint $\smset\to\poly$ sending $s\mapsto sx^0$.
+%		\next Has fully faithful left adjoint $\smset\to\poly$ sending $s\mapsto sx^1$.
+%		\next Preserves $\otimes$.
+%		\endsub
+%	\next A fully faithful functor $(s\mapsto x^s)\colon\smset\op\to\poly$
+%		\sub Strong in three ways
+%			\sub Send $+$ to $\times$,
+%			\item send $\times$ to $\otimes$, and
+%			\item send $\times$ to $\odot$!
+%			\endsub
+%		\endsub
+%	\endsub
+%\next Dynamical systems and wiring diagrams
+%	\sub Mode-independent = fixed interface = monomial
+%	\endsub
+%\endsub
+
+\end{document}
