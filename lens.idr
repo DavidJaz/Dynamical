@@ -1,8 +1,6 @@
 module lens
 
 
-import Control.Monad.Identity
-
 -- An Interface is a dependent type
 public export
 record Interface where
@@ -14,16 +12,20 @@ record Interface where
 -- otherwise, the type checker can't reduce the types, and you can't really use
 -- them
 public export
-SimpleInterface : Type -> Interface
-SimpleInterface S = MkInterface S (\_ => S)
+SimpleInterface : (o : Type) -> (i : Type) -> Interface
+SimpleInterface o i = MkInterface o (\_ => i)
 
 public export
 ForwardInterface : Type -> Interface
-ForwardInterface S = MkInterface S (\_ => ())
+ForwardInterface s = MkInterface s (\_ => ())
 
 public export
 Closed : Interface
 Closed = ForwardInterface ()
+
+public export
+Total : Interface -> Type
+Total i = (o : output i ** input i o)
 
 
 -- A Monadic Dependent Lens:
