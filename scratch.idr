@@ -2,35 +2,9 @@ module scratch
 
 import Control.Monad.Identity
 import lens
-{-
-
-S = Work Int Int | Ready
-O = Input | Busy | Output Int
-
-TS : S -> Type
-I  : O -> Type
-
-TS _         = S
-I Input      = Int Int
-I Busy       = ()
-I (Output _) = ()
-
-Add : Poly (S, TS) -> (O, I)
-Add : (s : S) -> (o : O, I o -> TS s)
-
-Add (Work 0 n)     = (Output n, \ ()  -> Ready)
-Add (Work (m+1) n) = (Busy,     \ ()  -> Work m (n+1))
-Add Ready          = (Input, \ (m, n) -> Work mn) 
-
-
--} 
-
+import system
 -- Example 1:
-
-
-data S1 = Work Int Int | Ready
-State1 : Interface
-State1 = SimpleInterface S1 
+data State1 = Work Int Int | Ready
 
 data O1 = Input | Busy | Output Int
 Interface1 : Interface
@@ -41,22 +15,26 @@ Interface1 = MkInterface O1 I
     I Busy       = ()
     I (Output _) = ()
  
-
-
-Add : Lens Identity State1 Interface1
-Add = MkLens readout update
+Add : PureSystem State1 Interface1
+Add = MkSystem readout update
    where
-    readout : output State1 -> output Interface1
-    update  : (s : output State1) -> (input Interface1 (readout s)) -> Identity (input State1 s)
+    readout : State1 -> output Interface1
+    update  : (s : State1) -> (input Interface1 (readout s)) -> Identity State1
 
     readout (Work 0 n) = Output n
     readout (Work m n) = Busy
     readout Ready      = Input
 
-    update (Work 0 n) _  = pure Ready
+    update (Work 0 n) _  = pure   Ready
     update (Work m n) _  = pure $ Work (m - 1) n
     update Ready (m , n) = pure $ Work m       n
 
+nextTest : Selection Interface1
+nextTest Input      = (10, 0)
+nextTest Busy       = ()
+nextTest (Output _) = ()
+
+-- Lotka Voltera Predator Prey Model
 record LKState where
        constructor MkLK
        rabbits : Int
@@ -65,13 +43,13 @@ record LKState where
 TLKState : LKState -> Type
 TLKState _ = LKState
 
-record Params where
+record LKParams where
        constructor MkParams
        rabbitBirth : Int
        interaction : Int
        foxDeath    : Int
 ILK : LKState -> Type
-ILK _ = Params        
+ILK _ = LKParams        
         
 LK : DMlens Identity LKState TLKState LKState ILK
 LK = MkDMlens id update

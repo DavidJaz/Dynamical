@@ -27,6 +27,37 @@ public export
 Total : Interface -> Type
 Total i = (o : output i ** input i o)
 
+public export 
+Selection : Interface -> Type
+Selection i = (o : output i) -> input i o
+
+-- A trajectory in an interface is a hypothetical stream of outputs,
+-- given at each state a choice of compatible inputs.
+public export
+codata Trajectory : (i : Interface) -> Type where
+       (::) :  (head : output i) -> (tail : input i head -> Trajectory i) -> Trajectory i
+
+public export
+head : Trajectory i -> output i
+head (head :: _) = head
+
+public export
+tail : (t : Trajectory i) -> input i (head t) -> Trajectory i
+tail (_ :: tail) = tail
+
+-- toStreamTrajectory takes a trajectory and a function which selects the next input
+-- and yields a stream of outputs
+export 
+toStreamTrajectory :  (t : Trajectory i)
+                   -> (next : Selection i)
+                   -> Stream (output i)
+toStreamTrajectory {i} t next = current :: toStreamTrajectory rest next
+  where
+    current : output i
+    current = head t
+    
+    rest : Trajectory i
+    rest = tail t (next current)
 
 -- A Monadic Dependent Lens:
 -- It consists of:
@@ -72,3 +103,5 @@ export
 fromPairedFunction :  ( (x : uf) -> (y : df ** (db y) -> m (ub x)) )
                    -> Lens m (MkInterface uf ub) (MkInterface df db) 
 fromPairedFunction f = MkLens (\x => fst (f x)) (\x => snd (f x))
+
+
