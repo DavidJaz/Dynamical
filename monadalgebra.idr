@@ -14,3 +14,7 @@ export
 implementation (Monad m) => MonadAlgebra m (m a) where
   eval = join
 
+public export
+implementation MonadAlgebra Maybe Type where
+  eval (Just t) = t
+  eval Nothing  = ()

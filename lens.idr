@@ -1,5 +1,8 @@
 module lens
 
+import Data.Vect
+
+%access public export
 
 -- An Interface is a dependent type
 public export
@@ -31,6 +34,13 @@ public export
 Selection : Interface -> Type
 Selection i = (o : output i) -> input i o
 
+pair : Interface -> Interface -> Interface
+pair i j = MkInterface (output i, output j) inputs
+     where
+      inputs : (output i, output j) -> Type
+      inputs (s, t) = (input i s, input j t)
+
+
 -- A trajectory in an interface is a hypothetical stream of outputs,
 -- given at each state a choice of compatible inputs.
 public export
@@ -47,7 +57,7 @@ tail (_ :: tail) = tail
 
 -- toStreamTrajectory takes a trajectory and a function which selects the next input
 -- and yields a stream of outputs
-export 
+public export 
 toStreamTrajectory :  (t : Trajectory i)
                    -> (next : Selection i)
                    -> Stream (output i)
@@ -96,6 +106,23 @@ export
         b x d = do
           middle <- (back lens2) (forward lens1 $ x) d
           (back lens1) x middle
+          
+mix : (Monad m) => m a -> m b -> m (a, b)
+mix ma mb = do
+              a <- ma
+              b <- mb
+              pure (a, b)          
+          
+(<+>) : (Monad m) => Lens m i1 j1
+                  -> Lens m i2 j2
+                  -> Lens m (pair i1 i2) (pair j1 j2)
+(<+>) {m} {i1} {j1} {i2} {j2} lens1 lens2 = MkLens f b
+      where
+        f : (output i1, output i2) -> (output j1, output j2)
+        f (a, a') = (forward lens1 a, forward lens2 a')
+        
+        b : (x : output (pair i1 i2)) -> input (pair j1 j2) (f x) -> m $ input (pair i1 i2) x
+        b (a, a') (x, y) = mix (back lens1 a x) (back lens2 a' y)
 
 -- fromPairedFunction takes a function of the given type and
 -- builds the interfaces and lenses out of it. 
