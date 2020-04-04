@@ -38,6 +38,7 @@ BusyBeaver = MkSystem readout update
 Add : PureSystem Int (SimpleInterface Int (Int, Int)) 
 Add = boxUp (pure . uncurry (+))
     
+{- 
 wiring1 : Lens Identity (interfaceOf (Add <+> (OneStepDelay Int))) (ForwardInterface Int)
 wiring1 = MkLens fst b
   where
@@ -47,7 +48,7 @@ wiring1 = MkLens fst b
     b :  (x : output (interfaceOf (Add <+> (OneStepDelay Int))))
       -> input (ForwardInterface $ output Interface1) (f x)
       -> Identity $ input (interfaceOf (Add <+> (OneStepDelay Int))) x
-
+-}
 
 
 nextTest : Selection Interface1
