@@ -2,6 +2,9 @@ module Lens
 
 %access public export
 
+--- Code by David I. Spivak and David Jaz Myers
+--- © Co-vid 2020
+
 ------ The category of arenas ------
 
 
@@ -29,13 +32,13 @@ idLens a = MkLens id (\_ => id)
 
 infixr 4 <.>
 (<.>) : Lens a2 a3 -> Lens a1 a2 -> Lens a1 a3
-(<.>) lens23 lens12 = MkLens obs int
+(<.>) animate23 animate12 = MkLens obs int
       where
         obs : pos a1 -> pos a3
-        obs = (observe lens23) . (observe lens12)
+        obs = (observe animate23) . (observe animate12)
 
         int : (p : pos a1) -> (dis a3 (obs p)) -> dis a1 p
-        int p = (interpret lens12 p) . (interpret lens23 (observe lens12 p))
+        int p = (interpret animate12 p) . (interpret animate23 (observe animate12 p))
 
 --- Manipulations on Arenas ---
 
@@ -226,12 +229,12 @@ juxtLens : (ind : Type) ->
               ((i : ind) -> Lens (a1 i) (a2 i))
               ->
               Lens (juxt ind a1) (juxt ind a2)
-juxtLens ind a1 a2 lens = MkLens obse inte 
+juxtLens ind a1 a2 animate = MkLens obse inte 
           where
             obse : pos (juxt ind a1) -> pos (juxt ind a2)
-            obse p i = observe (lens i) (p i)
+            obse p i = observe (animate i) (p i)
             inte : (p : pos (juxt ind a1)) -> dis (juxt ind a2) (obse p) -> dis (juxt ind a1) p
-            inte p d i = interpret (lens i) (p i) (d i)
+            inte p d i = interpret (animate i) (p i) (d i)
 -}
 
 
@@ -328,33 +331,36 @@ infixr 4 ^^
 
 record Dynam where
        constructor MkDynam
-       state : Type
-       body  : Arena
-       lens  : Lens (Self state) body
+       state    : Type
+       body     : Arena
+       animate  : Lens (Self state) body
 
 static : Dynam
 static = MkDynam () Closed (linearFunction id)
 
 infixr 4 &&&
 (&&&) : Dynam -> Dynam -> Dynam
-(&&&) dyn1 dyn2 = MkDynam state12 body12 lens12
+(&&&) dyn1 dyn2 = MkDynam state12 body12 animate12
           where
             state12 : Type
             state12 = (state dyn1, state dyn2)
             body12 : Arena
             body12 = (body dyn1) & (body dyn2)
-            lens12 : Lens (Self state12) body12
-            lens12 = MkLens o i
+            animate12 : Lens (Self state12) body12
+            animate12 = MkLens o i
             where
               o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
-              o (s1, s2) = (observe (lens dyn1) s1, observe (lens dyn2) s2)
+              o (s1, s2) = (observe (animate dyn1) s1, observe (animate dyn2) s2)
               i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
               i (s1, s2) (d1, d2) = 
-                (interpret (lens dyn1) s1 d1, interpret (lens dyn2) s2 d2)
+                (interpret (animate dyn1) s1 d1, interpret (animate dyn2) s2 d2)
 
 juxtapose : List Dynam -> Dynam
 juxtapose []        = static
 juxtapose (d :: ds) = d &&& (juxtapose ds)
+
+install : (d : Dynam) -> (a : Arena) -> Lens (body d) a -> Dynam
+install d a l = MkDynam (state d) a (l <.> (animate d))
 
 
 
@@ -364,12 +370,12 @@ juxtapose (d :: ds) = d &&& (juxtapose ds)
 
 
 funcToDynam : {s : Type} -> {t : Type} -> (s -> t) -> Dynam
-funcToDynam {s} {t} f = MkDynam t bodyf lensf
+funcToDynam {s} {t} f = MkDynam t bodyf animatef
             where
               bodyf : Arena
-              lensf : Lens (Self t) bodyf
+              animatef : Lens (Self t) bodyf
               bodyf = IOArena s t
-              lensf = MkLens id (const f)
+              animatef = MkLens id (const f)
 
 
 
@@ -378,7 +384,7 @@ delay : (s : Type) -> Dynam
 delay s = funcToDynam (the (s -> s) id)
 
 plus : Dynam
-plus = funcToDynam (+)
+plus = funcToDynam (uncurry (+))
 
 
 Prefib : Dynam
@@ -398,14 +404,15 @@ Prefib = juxtapose [plus, delay Integer, delay Integer]
 fibwd : Lens (body Prefib) (linear Integer)
 fibwd = MkLens observe interpret 
           where
-            observe : pos (body Prefib) -> Integer
-            observe = ?o
-            interpret : (p : pos (body Prefib)) -> () -> dis (body Prefib) p
+            observe : (Integer, Integer, Integer, ()) -> Integer
+            observe (pl, de1, de2, _) = de2
+            interpret : (p : (Integer, Integer, Integer, ())) -> () -> dis (body Prefib) p
+            interpret (pl, de1, de2, _) = \_ => ((de1, de2), pl, de1, ())
 
 
 
-
-
+Fibonacci : Dynam
+Fibonacci = install Prefib (linear Integer) fibwd
 
 
 
@@ -514,7 +521,7 @@ juxtapose ind dynam = MkDynam stjux bojux lejux
             bod = body . dynam
             sta = state . dynam
             sel = Self . sta
-            len i = lens (dynam i)
+            len i = animate (dynam i)
             stjux : Type
             bojux : Arena
             lejux : Lens (Self stjux) bojux
