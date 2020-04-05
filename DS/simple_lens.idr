@@ -96,41 +96,21 @@ ev1y a = linear $ pos a
 fromEv1y : (a : Arena) -> Lens (ev1y a) a
 fromEv1y a = MkLens id (\_, _ => ()) 
 
-lift0 : {t, u : Type} -> (t -> u) -> Lens (const t) (const u)
-lift0 {t} {u} f = MkLens f (\_ => id)
+constantFunction : {t, u : Type} -> (t -> u) -> Lens (const t) (const u)
+constantFunction {t} {u} f = MkLens f (\_ => id)
 
-lift1 : {t, u : Type} -> (t -> u) -> Lens (linear t) (linear u)
-lift1 {t} {u} f = MkLens f (\_ => id) 
+linearFunction : {t, u : Type} -> (t -> u) -> Lens (linear t) (linear u)
+linearFunction {t} {u} f = MkLens f (\_ => id) 
 
-liftpp : {t, u: Type} -> (t -> u) -> Lens (purepower u) (purepower t)
-liftpp {t} {u} f = MkLens id (\_ => f)
+powerFunction : {t, u: Type} -> (t -> u) -> Lens (purepower u) (purepower t)
+powerFunction {t} {u} f = MkLens id (\_ => f)
 
 --- sum ---
 
 zero : Arena
 zero = IOArena Void Void
 
-sum : (ind : Type ** ind -> Arena) -> Arena
-sum (ind ** arena) = MkArena psum dsum
-          where
-            psum : Type
-            psum = (i : ind ** pos (arena i))
-            dsum : psum -> Type
-            dsum (i ** p) = dis (arena i) p
-
 infixr 4 <++>
-
-{- Here is <++> in terms of sum
-
-(<++>) : Arena -> Arena -> Arena
-(<++>) a b = sum (ind ** arena)
-          where
-            ind : Type
-            ind = Either () ()
-            arena : ind -> Arena
-            arena (Left ()) = a
-            arena (Right ()) = b
--}
 
 (<++>) : Arena -> Arena -> Arena
 (<++>) a b = MkArena posab disab
@@ -141,6 +121,13 @@ infixr 4 <++>
             disab (Left p)  = dis a p
             disab (Right p) = dis b p
 
+sum : (ind : Type ** ind -> Arena) -> Arena
+sum (ind ** arena) = MkArena psum dsum
+          where
+            psum : Type
+            psum = (i : ind ** pos (arena i))
+            dsum : psum -> Type
+            dsum (i ** p) = dis (arena i) p
 
 
 
@@ -160,27 +147,7 @@ sumLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
 one : Arena
 one = IOArena Void ()
 
-prod : (ind : Type ** ind -> Arena) -> Arena
-prod (ind ** arena) = MkArena pprod dprod
-          where
-            pprod : Type
-            pprod = (i : ind) -> pos (arena i)
-            dprod : pprod -> Type
-            dprod p = (i : ind ** dis (arena i) (p i))
-
 infixr 4 <**>
-
-{- Here is <**> in terms of prod
-
-(<**>) : Arena -> Arena -> Arena
-(<**>) a b = prod (ind ** arena)
-          where
-            ind : Type
-            ind = Either () ()
-            arena : ind -> Arena
-            arena (Left ()) = a
-            arena (Right ()) = b
--}
 
 (<**>) : Arena -> Arena -> Arena
 (<**>) a b = MkArena posab disab
@@ -189,6 +156,21 @@ infixr 4 <**>
             posab = (pos a, pos b)
             disab : posab -> Type
             disab (pa, pb) = Either (dis a pa) (dis b pb)
+
+prodList : List Arena -> Arena
+prodList [] = one
+prodList (a :: as) = a <**> (prodList as)
+
+
+-- prod is used often: the dependent product of polynomials
+prod : (ind : Type ** ind -> Arena) -> Arena
+prod (ind ** arena) = MkArena pprod dprod
+          where
+            pprod : Type
+            pprod = (i : ind) -> pos (arena i)
+            dprod : pprod -> Type
+            dprod p = (i : ind ** dis (arena i) (p i))
+
 
 prodLens : Lens a1 b1 -> Lens a2 b2 -> Lens (a1 <**> a2) (b1 <**> b2)
 prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i 
@@ -204,14 +186,6 @@ prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
 
 infixr 4 &
 
-juxt : (ind : Type) -> (ind -> Arena) -> Arena
-juxt ind arena = MkArena pjuxt djuxt
-          where
-            pjuxt : Type
-            pjuxt = (i : ind) -> pos (arena i)
-            djuxt : pjuxt -> Type
-            djuxt p = (i : ind) -> dis (arena i) (p i)
-
 (&) : Arena -> Arena -> Arena
 (&) a b = MkArena posab disab
           where 
@@ -220,9 +194,32 @@ juxt ind arena = MkArena pjuxt djuxt
             disab : posab -> Type
             disab (pa, pb) = (dis a pa, dis b pb)
 
+juxtList : List Arena -> Arena
+juxtList = foldr (&) Closed
+
+juxtLens : Lens a1 b1 -> Lens a2 b2 -> Lens (a1 & a2) (b1 & b2)
+juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
+          where 
+            o : pos (a1 & a2) -> pos (b1 & b2)
+            o (p1, p2) = (observe l1 p1, observe l2 p2)
+            i : (p : pos (a1 & a2)) -> dis (b1 & b2) (o p) -> dis (a1 & a2) p
+            i (p1, p2) (d1, d2) = (interpret l1 p1 d1, interpret l2 p2 d2)
+
+
+{-
+juxtSelf : (t : List Type) -> Lens (Self (foldr Pair () t)) (juxtList (map Self t))
+juxtSelf t = MkLens id i
+          where
+            o : (foldr Pair () t) -> pos (juxtList (map Self t))
+
+            i : (p : pos (Self (foldr Pair () t))) -> dis (juxtList (map Self t)) (o p) -> dis (Self (foldr Pair () t)) p
+
 juxtSelf : (ind : Type) -> (s : ind -> Type) -> Lens (Self ((i : ind) -> s i)) (juxt ind (Self . s))
 juxtSelf ind s = MkLens id (\_ => id)
+-}
 
+
+{-
 juxtLens : (ind : Type) -> 
               (a1 : ind -> Arena) ->
               (a2 : ind -> Arena) -> 
@@ -235,14 +232,6 @@ juxtLens ind a1 a2 lens = MkLens obse inte
             obse p i = observe (lens i) (p i)
             inte : (p : pos (juxt ind a1)) -> dis (juxt ind a2) (obse p) -> dis (juxt ind a1) p
             inte p d i = interpret (lens i) (p i) (d i)
-{- for pairs
-juxtLens : Lens a1 b1 -> Lens a2 b2 -> Lens (a1 & a2) (b1 & b2)
-juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
-          where 
-            o : pos (a1 & a2) -> pos (b1 & b2)
-            o (p1, p2) = (observe l1 p1, observe l2 p2)
-            i : (p : pos (a1 & a2)) -> dis (b1 & b2) (o p) -> dis (a1 & a2) p
-            i (p1, p2) (d1, d2) = (interpret l1 p1 d1, interpret l2 p2 d2)
 -}
 
 
@@ -289,6 +278,250 @@ comult s = MkLens o i
             i : (x : s) -> (dis ((Self s) @@ (Self s)) (o x)) -> s
             i x (d1 ** d2) = d2
 
+
+
+--- Duoidal ---
+
+duoidal : {a1, a2, b1, b2 : Arena} -> Lens ((a1 @@ a2) & (b1 @@ b2))
+                                           ((a1 & b1) @@ (a2 & b2))
+duoidal {a1} {a2} {b1} {b2} = MkLens o i
+          where
+            x : Arena
+            x = (a1 @@ a2) & (b1 @@ b2)
+            y : Arena
+            y = (a1 & b1) @@ (a2 & b2)
+            o : pos x -> pos y
+            o ((p1 ** p2), (q1 ** q2)) = pp
+              where
+                pp : (p : (pos a1, pos b1) ** dis (a1 & b1) p -> pos (a2 & b2))
+                pp = ((p1, q1) ** (\d : dis (a1 & b1) (p1, q1) => (p2 (fst d), q2 (snd d))))
+            i : (p : pos x) -> dis y (o p) -> dis x p
+            i ((p1 ** p2), (q1 ** q2)) = ii
+              where
+--              ii : dis y ((p1, q1) ** (\d : dis (a1 & b1) (p1, q1) => (p2 (fst d), q2 (snd d)))) 
+--                      -> dis x ((p1 ** p2), (q1 ** q2))
+                ii : (de1 : dis (a1 & b1) (p1, q1) ** dis (a2 & b2) (p2 (fst de1), q2 (snd de1)))
+                        -> dis x ((p1 ** p2), (q1 ** q2))
+                ii (de1 ** de2) = ((fst de1 ** fst de2), (snd de1 ** snd de2))
+
+--- Exponentiation ---
+
+infixr 4 ^
+
+--prod : (ind : Type ** ind -> Arena) -> Arena
+(^) : Arena -> Arena -> Arena
+(^) a b = prod (pos a ** arena)
+          where
+            arena : pos a -> Arena
+            arena p = b @@ ((const $ dis a p) <++> Closed)
+
+--- Internal Hom ---
+
+infixr 4 ^^
+(^^) : Arena -> Arena -> Arena
+(^^) a b = prod (pos a ** arena)
+          where 
+            arena : pos a -> Arena
+            arena p = b @@ (linear $ dis a p)
+
+--- Dynamical systems ---
+
+record Dynam where
+       constructor MkDynam
+       state : Type
+       body  : Arena
+       lens  : Lens (Self state) body
+
+static : Dynam
+static = MkDynam () Closed (linearFunction id)
+
+infixr 4 &&&
+(&&&) : Dynam -> Dynam -> Dynam
+(&&&) dyn1 dyn2 = MkDynam state12 body12 lens12
+          where
+            state12 : Type
+            state12 = (state dyn1, state dyn2)
+            body12 : Arena
+            body12 = (body dyn1) & (body dyn2)
+            lens12 : Lens (Self state12) body12
+            lens12 = MkLens o i
+            where
+              o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
+              o (s1, s2) = (observe (lens dyn1) s1, observe (lens dyn2) s2)
+              i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
+              i (s1, s2) (d1, d2) = 
+                (interpret (lens dyn1) s1 d1, interpret (lens dyn2) s2 d2)
+
+juxtapose : List Dynam -> Dynam
+juxtapose []        = static
+juxtapose (d :: ds) = d &&& (juxtapose ds)
+
+
+
+
+
+--- Examples ---
+
+
+funcToDynam : {s : Type} -> {t : Type} -> (s -> t) -> Dynam
+funcToDynam {s} {t} f = MkDynam t bodyf lensf
+            where
+              bodyf : Arena
+              lensf : Lens (Self t) bodyf
+              bodyf = IOArena s t
+              lensf = MkLens id (const f)
+
+
+
+
+delay : (s : Type) -> Dynam
+delay s = funcToDynam (the (s -> s) id)
+
+plus : Dynam
+plus = funcToDynam (+)
+
+
+Prefib : Dynam
+Prefib = juxtapose [plus, delay Integer, delay Integer]
+
+{-
+(&) a b = MkArena posab disab
+          where 
+            posab : Type
+            posab = (pos a, pos b)
+            disab : posab -> Type
+            disab (pa, pb) = (dis a pa, dis b pb)
+
+-}
+
+
+fibwd : Lens (body Prefib) (linear Integer)
+fibwd = MkLens observe interpret 
+          where
+            observe : pos (body Prefib) -> Integer
+            observe = ?o
+            interpret : (p : pos (body Prefib)) -> () -> dis (body Prefib) p
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--- Appendix 1 ---
+
+
+
+{- Here is <++> in terms of sum
+
+(<++>) : Arena -> Arena -> Arena
+(<++>) a b = sum (ind ** arena)
+          where
+            ind : Type
+            ind = Either () ()
+            arena : ind -> Arena
+            arena (Left ()) = a
+            arena (Right ()) = b
+-}
+
+{- Here is <**> in terms of prod
+
+(<**>) : Arena -> Arena -> Arena
+(<**>) a b = prod (ind ** arena)
+          where
+            ind : Type
+            ind = Either () ()
+            arena : ind -> Arena
+            arena (Left ()) = a
+            arena (Right ()) = b
+-}
+
+
+juxt : (ind : Type) -> (ind -> Arena) -> Arena
+juxt ind arena = MkArena pjuxt djuxt
+          where
+            pjuxt : Type
+            pjuxt = (i : ind) -> pos (arena i)
+            djuxt : pjuxt -> Type
+            djuxt p = (i : ind) -> dis (arena i) (p i)
+
+
+{-
+juxtapose : (ind : Type) -> (ind -> Dynam) -> Dynam
+juxtapose ind dynam = MkDynam stjux bojux lejux
+          where
+            bod : ind -> Arena
+            sta : ind -> Type
+            sel : ind -> Arena
+            len : (i : ind) -> Lens (sel i) (bod i)
+            bod = body . dynam
+            sta = state . dynam
+            sel = Self . sta
+            len i = lens (dynam i)
+            stjux : Type
+            bojux : Arena
+            lejux : Lens (Self stjux) bojux
+            stjux = (i : ind) -> sta i
+            bojux = juxt ind bod
+            lejux = (juxtLens ind sel bod len) <.> (juxtSelf ind sta)
+-}
 
 --- Distributivity ---
 
@@ -351,130 +584,5 @@ sumJuxt {a} {b} {c} = MkLens o i
               i : (p : pos a1) -> dis a2 (o p) -> dis a1 p
               i (Left (pa, pb)) (da, db) = (da, db)
               i (Right (pa, pc)) (da, dc) = (da, dc)
-
---- Duoidal ---
-
-duoidal : {a1, a2, b1, b2 : Arena} -> Lens ((a1 @@ a2) & (b1 @@ b2))
-                                           ((a1 & b1) @@ (a2 & b2))
-duoidal {a1} {a2} {b1} {b2} = MkLens o i
-          where
-            x : Arena
-            x = (a1 @@ a2) & (b1 @@ b2)
-            y : Arena
-            y = (a1 & b1) @@ (a2 & b2)
-            o : pos x -> pos y
-            o ((p1 ** p2), (q1 ** q2)) = pp
-              where
-                pp : (p : (pos a1, pos b1) ** dis (a1 & b1) p -> pos (a2 & b2))
-                pp = ((p1, q1) ** (\d : dis (a1 & b1) (p1, q1) => (p2 (fst d), q2 (snd d))))
-            i : (p : pos x) -> dis y (o p) -> dis x p
-            i ((p1 ** p2), (q1 ** q2)) = ii
-              where
---              ii : dis y ((p1, q1) ** (\d : dis (a1 & b1) (p1, q1) => (p2 (fst d), q2 (snd d)))) 
---                      -> dis x ((p1 ** p2), (q1 ** q2))
-                ii : (de1 : dis (a1 & b1) (p1, q1) ** dis (a2 & b2) (p2 (fst de1), q2 (snd de1)))
-                        -> dis x ((p1 ** p2), (q1 ** q2))
-                ii (de1 ** de2) = ((fst de1 ** fst de2), (snd de1 ** snd de2))
-
---- Exponentiation ---
-
-infixr 4 ^
-
---prod : (ind : Type ** ind -> Arena) -> Arena
-(^) : Arena -> Arena -> Arena
-(^) a b = prod (pos a ** arena)
-          where
-            arena : pos a -> Arena
-            arena p = b @@ ((const $ dis a p) <++> Closed)
-
---- Internal Hom ---
-
-infixr 4 ^^
-(^^) : Arena -> Arena -> Arena
-(^^) a b = prod (pos a ** arena)
-          where 
-            arena : pos a -> Arena
-            arena p = b @@ (linear $ dis a p)
-
---- Dynamical systems ---
-
-record Dynam where
-       constructor MkDynam
-       state : Type
-       body  : Arena
-       lens  : Lens (Self state) body
-
-juxtDynam : (ind : Type) -> (ind -> Dynam) -> Dynam
-juxtDynam ind dynam = MkDynam stjux bojux lejux
-          where
-            bod : ind -> Arena
-            bod = body . dynam
-            sta : ind -> Type
-            sta = state . dynam
-            sel : ind -> Arena
-            sel = Self . sta
-            len : (i : ind) -> Lens (sel i) (bod i)
-            len i = lens (dynam i)
-            stjux : Type
-            stjux = (i : ind) -> sta i
-            bojux : Arena
-            bojux = juxt ind bod
-            lejux : Lens (Self stjux) bojux
-            lejux = (juxtLens ind sel bod len) <.> (juxtSelf ind sta)
---juxtSelf : (ind : Type) -> (s : ind -> Type) -> Lens (Self ((i : ind) -> s i)) (juxt ind (Self . s))
---juxtLens : (ind : Type) -> 
---            (a1 : ind -> Arena) ->
---            (a2 : ind -> Arena) -> 
---            ((i : ind) -> Lens (a1 i) (a2 i))
---            -> 
---            Lens (juxt ind a1) (juxt ind a2)
-
-{-
-juxtDynam : Dynam -> Dynam -> Dynam
-juxtDynam dyn1 dyn2 = MkDynam state12 body12 lens12
-          where
-            state12 : Type
-            state12 = (state dyn1, state dyn2)
-            body12 : Arena
-            body12 = (body dyn1) & (body dyn2)
-            lens12 : Lens (Self state12) body12
-            lens12 = MkLens o i
-            where
-              o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
-              o (s1, s2) = (observe (lens dyn1) s1, observe (lens dyn2) s2)
-              i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
-              i (s1, s2) (d1, d2) = 
-                (interpret (lens dyn1) s1 d1, interpret (lens dyn2) s2 d2)
--}
-
-funcToDynam : {s : Type} -> {t : Type} -> (s -> t) -> Dynam
-funcToDynam {s} {t} f = MkDynam t bodyf lensf
-            where
-              bodyf : Arena
-              lensf : Lens (Self t) bodyf
-              bodyf = IOArena s t
-              lensf = MkLens id (const f)
-
-
-
---- Examples ---
-
-delay : {s : Type} -> Dynam
-delay {s} = funcToDynam (the (s -> s) id)
-
-plus : Dynam
-plus = funcToDynam (+)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
