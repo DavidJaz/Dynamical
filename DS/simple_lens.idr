@@ -61,6 +61,9 @@ Closed = IOArena () ()
 
 --- sum ---
 
+zero : Arena
+zero = IOArena Void Void
+
 sum : Arena -> Arena -> Arena
 sum a b = MkArena posab disab
           where
@@ -88,6 +91,9 @@ sumLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
 
 --- product ---
 
+one : Arena
+one = IOArena Void ()
+
 prod : Arena -> Arena -> Arena
 prod a b = MkArena posab disab
           where
@@ -107,6 +113,8 @@ prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
 
 
 --- Juxtaposition ---
+
+
 
 juxt : Arena -> Arena -> Arena
 juxt a b = MkArena posab disab
@@ -148,6 +156,7 @@ circLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
               e1 : dis a1 p 
               e1 = interpret l1 p d1
 
+--- Selves are comonoids ---
 
 counit : (s : Type) -> Lens (Self s) Closed
 counit s = MkLens o i
@@ -164,6 +173,90 @@ comult s = MkLens o i
             o x = (x ** id)
             i : (x : s) -> (dis (circ (Self s) (Self s)) (o x)) -> s
             i x (d1 ** d2) = d2
+
+
+--- Distributivity ---
+
+prodSum : {a, b, c : Arena} -> Lens (prod a (sum b c)) (sum (prod a b) (prod a c))
+prodSum {a} {b} {c} = MkLens o i
+            where
+              a1 : Arena
+              a1 = prod a (sum b c)
+              a2 : Arena
+              a2 = sum (prod a b) (prod a c)
+              o : pos a1 -> pos a2
+              o (p, Left q)  = Left (p, q)
+              o (p, Right r) = Right (p, r)
+              i : (p : pos a1) -> dis a2 (o p) -> dis a1 p
+              i (pa, Left pb) (Left da) = Left da
+              i (pa, Left pb) (Right db) = Right db
+              i (pa, Right pc) (Left da) = Left da
+              i (pa, Right pc) (Right dc) = Right dc
+
+sumProd : {a, b, c : Arena} -> Lens (sum (prod a b) (prod a c)) (prod a (sum b c))
+sumProd {a} {b} {c} = MkLens o i
+            where
+              a1 : Arena
+              a1 = sum (prod a b) (prod a c)
+              a2 : Arena
+              a2 = prod a (sum b c)
+              o : pos a1 -> pos a2
+              o (Left (pa, pb)) = (pa, Left pb)
+              o (Right (pa, pc)) = (pa, Right pc)
+              i : (p : pos a1) -> dis a2 (o p) -> dis a1 p
+              i (Left (pa, pb)) (Left da) = Left da
+              i (Left (pa, pb)) (Right db) = Right db
+              i (Right (pa, pc)) (Left da) = Left da
+              i (Right (pa, pc)) (Right dc) = Right dc
+
+juxtSum : {a, b, c : Arena} -> Lens (juxt a (sum b c)) (sum (juxt a b) (juxt a c))
+juxtSum {a} {b} {c} = MkLens o i
+            where
+              a1 : Arena
+              a1 = juxt a (sum b c)
+              a2 : Arena
+              a2 = sum (juxt a b) (juxt a c)
+              o : pos a1 -> pos a2
+              o (pa, Left pb) = Left (pa, pb)
+              o (pa, Right pc) = Right (pa, pc)
+              i : (p : pos a1) -> dis a2 (o p) -> dis a1 p
+              i (pa, Left pb) (da, db) = (da, db)
+              i (pa, Right pc) (da, dc) = (da, dc)
+
+sumJuxt : {a, b, c : Arena} -> Lens (sum (juxt a b) (juxt a c)) (juxt a (sum b c))
+sumJuxt {a} {b} {c} = MkLens o i
+            where
+              a1 : Arena
+              a1 = sum (juxt a b) (juxt a c)
+              a2 : Arena
+              a2 = juxt a (sum b c)
+              o : pos a1 -> pos a2
+              o (Left (pa, pb)) = (pa, Left pb)
+              o (Right (pa, pc)) = (pa, Right pc)
+              i : (p : pos a1) -> dis a2 (o p) -> dis a1 p
+              i (Left (pa, pb)) (da, db) = (da, db)
+              i (Right (pa, pc)) (da, dc) = (da, dc)
+
+--- Duoidal ---
+
+duoidal : {a1, a2, b1, b2 : Arena} -> Lens ((a1 `circ` a2) `juxt` (b1 `circ` b2))
+                                           ((a1 `juxt` b1) `circ` (a2 `juxt` b2))
+duoidal {a1} {a2} {b1} {b2} = MkLens o i
+          where
+            x : Arena
+            x = (a1 `circ` a2) `juxt` (b1 `circ` b2)
+            y : Arena
+            y = (a1 `juxt` b1) `circ` (a2 `juxt` b2)
+            o : pos x -> pos y
+            o ((p ** d), (q ** e)) = ?o
+            i : (p : pos x) -> dis y (o p) -> dis x p
+
+
+
+
+
+
+
 
 
 
