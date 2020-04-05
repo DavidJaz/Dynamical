@@ -148,15 +148,22 @@ circLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
               e1 : dis a1 p 
               e1 = interpret l1 p d1
 
-{-
-counit : (s : Type) -> (Lens (self s) -> closed)
-count s = MkLens o i
+
+counit : (s : Type) -> Lens (Self s) Closed
+counit s = MkLens o i
           where
-             o _ = ()
-             i s _ = s
+            o : s -> ()
+            o _ = ()
+            i : s -> () -> s
+            i s _ = s
 
--}
-
+comult : (s : Type) -> Lens (Self s) (circ (Self s) (Self s))
+comult s = MkLens o i
+          where
+            o : s -> pos (circ (Self s) (Self s))
+            o x = (x ** id)
+            i : (x : s) -> (dis (circ (Self s) (Self s)) (o x)) -> s
+            i x (d1 ** d2) = d2
 
 
 
