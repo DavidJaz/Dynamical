@@ -75,19 +75,35 @@ ev0 : Arena -> Arena
 ev0 a = const (AsFunctor a Void)
 
 fromEv0 : (a : Arena) -> Lens (ev0 a) a
+fromEv0 a = MkLens o i
+          where
+            o : (p : pos a ** dis a p -> Void) -> pos a
+            o = fst
+--          i : (x : pos (ev0 a)) -> dis a (o x) -> dis (ev0 a) x
+--          i : (x : AsFunctor a Void) -> dis a (o x) -> dis (ev0 a) x
+            i : (x : (p : pos a ** dis a p -> Void)) -> dis a (fst x) -> dis (ev0 a) x
+            i (p ** f) = f
 
 ev1 : Arena -> Arena
 ev1 a = const $ pos a
 
 toEv1 : (a : Arena) -> Lens a (ev1 a)
+toEv1 a = MkLens id (\_ => absurd)
 
 ev1y : Arena -> Arena
 ev1y a = linear $ pos a
 
 fromEv1y : (a : Arena) -> Lens (ev1y a) a
+fromEv1y a = MkLens id (\_, _ => ()) 
 
 lift0 : {t, u : Type} -> (t -> u) -> Lens (const t) (const u)
+lift0 {t} {u} f = MkLens f (\_ => id)
+
 lift1 : {t, u : Type} -> (t -> u) -> Lens (linear t) (linear u)
+lift1 {t} {u} f = MkLens f (\_ => id) 
+
+liftpp : {t, u: Type} -> (t -> u) -> Lens (purepower u) (purepower t)
+liftpp {t} {u} f = MkLens id (\_ => f)
 
 --- sum ---
 
@@ -334,9 +350,6 @@ duoidal {a1} {a2} {b1} {b2} = MkLens o i
                 ii : (de1 : dis (a1 & b1) (p1, q1) ** dis (a2 & b2) (p2 (fst de1), q2 (snd de1)))
                         -> dis x ((p1 ** p2), (q1 ** q2))
                 ii (de1 ** de2) = ((fst de1 ** fst de2), (snd de1 ** snd de2))
---            a @@ b = MkArena posab disab
---            posab = (p : pos a ** dis a p -> pos b)                  
---            disab (p ** f) = (d : dis a p ** dis b (f d))
 
 --- Exponentiation ---
 
