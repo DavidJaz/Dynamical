@@ -59,10 +59,10 @@ Closed : Arena
 Closed = IOArena () ()
 
 
---- Sum ---
+--- sum ---
 
-Sum : Arena -> Arena -> Arena
-Sum a b = MkArena posab disab
+sum : Arena -> Arena -> Arena
+sum a b = MkArena posab disab
           where
             posab : Type
             posab = Either (pos a) (pos b)
@@ -72,56 +72,56 @@ Sum a b = MkArena posab disab
 
 infixr 4 <++>
 (<++>) : Arena -> Arena -> Arena
-(<++>) = Sum
+(<++>) = sum
 
 
-SumLens : Lens a1 b1 -> Lens a2 b2 -> Lens (Sum a1 a2) (Sum b1 b2)
-SumLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
+sumLens : Lens a1 b1 -> Lens a2 b2 -> Lens (sum a1 a2) (sum b1 b2)
+sumLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
                where
-                 o : pos (Sum a1 a2) -> pos (Sum b1 b2)
+                 o : pos (sum a1 a2) -> pos (sum b1 b2)
                  o (Left p1)   = Left (observe l1 p1)
                  o (Right p2) = Right (observe l2 p2)
-                 i : (p : pos (Sum a1 a2)) -> dis (Sum b1 b2) (o p) -> dis (Sum a1 a2) p
+                 i : (p : pos (sum a1 a2)) -> dis (sum b1 b2) (o p) -> dis (sum a1 a2) p
                  i (Left p1) d1  = interpret l1 p1 d1
                  i (Right p2) d2 = interpret l2 p2 d2
 
 
---- Product ---
+--- product ---
 
-Prod : Arena -> Arena -> Arena
-Prod a b = MkArena posab disab
+prod : Arena -> Arena -> Arena
+prod a b = MkArena posab disab
           where
             posab : Type
             posab = (pos a, pos b)
             disab : posab -> Type
             disab (pa, pb) = Either (dis a pa) (dis b pb)
 
-ProdLens : Lens a1 b1 -> Lens a2 b2 -> Lens (Prod a1 a2) (Prod b1 b2)
-ProdLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i 
+prodLens : Lens a1 b1 -> Lens a2 b2 -> Lens (prod a1 a2) (prod b1 b2)
+prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i 
           where
-            o : pos (Prod a1 a2) -> pos (Prod b1 b2)
+            o : pos (prod a1 a2) -> pos (prod b1 b2)
             o (p1, p2) = (observe l1 p1, observe l2 p2)
-            i : (p : pos (Prod a1 a2)) -> dis (Prod b1 b2) (o p) -> dis (Prod a1 a2) p
+            i : (p : pos (prod a1 a2)) -> dis (prod b1 b2) (o p) -> dis (prod a1 a2) p
             i (p1, p2) (Left d1)  = Left (interpret l1 p1 d1)
             i (p1, p2) (Right d2) = Right (interpret l2 p2 d2)
 
 
 --- Juxtaposition ---
 
-Juxt : Arena -> Arena -> Arena
-Juxt a b = MkArena posab disab
+juxt : Arena -> Arena -> Arena
+juxt a b = MkArena posab disab
           where 
             posab : Type
             posab = (pos a, pos b)
             disab : posab -> Type
             disab (pa, pb) = (dis a pa, dis b pb)
 
-JuxtLens : Lens a1 b1 -> Lens a2 b2 -> Lens (Juxt a1 a2) (Juxt b1 b2)
-JuxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
+juxtLens : Lens a1 b1 -> Lens a2 b2 -> Lens (juxt a1 a2) (juxt b1 b2)
+juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
           where 
-            o : pos (Juxt a1 a2) -> pos (Juxt b1 b2)
+            o : pos (juxt a1 a2) -> pos (juxt b1 b2)
             o (p1, p2) = (observe l1 p1, observe l2 p2)
-            i : (p : pos (Juxt a1 a2)) -> dis (Juxt b1 b2) (o p) -> dis (Juxt a1 a2) p
+            i : (p : pos (juxt a1 a2)) -> dis (juxt b1 b2) (o p) -> dis (juxt a1 a2) p
             i (p1, p2) (d1, d2) = (interpret l1 p1 d1, interpret l2 p2 d2)
 
 
@@ -148,10 +148,14 @@ circLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
               e1 : dis a1 p 
               e1 = interpret l1 p d1
 
+{-
+counit : (s : Type) -> (Lens (self s) -> closed)
+count s = MkLens o i
+          where
+             o _ = ()
+             i s _ = s
 
---counit : 
-
-
+-}
 
 
 
