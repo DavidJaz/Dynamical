@@ -3,7 +3,7 @@ module Lens
 %access public export
 
 --- Code by David I. Spivak and David Jaz Myers
---- © Co-vid 2020
+--- © 2020  
 
 ------ The category of arenas ------
 
@@ -68,11 +68,11 @@ Closed = IOArena () ()
 const : Type -> Arena
 const t = IOArena Void t
 
-blind : Type -> Arena
-blind t = IOArena () t
+motor : Type -> Arena
+motor t = IOArena () t
 
-purepower : Type -> Arena
-purepower t = IOArena t ()
+sensor : Type -> Arena
+sensor t = IOArena t ()
 
 ev0 : Arena -> Arena
 ev0 a = const (AsFunctor a Void)
@@ -94,7 +94,7 @@ toEv1 : (a : Arena) -> Lens a (ev1 a)
 toEv1 a = MkLens id (\_ => absurd)
 
 ev1y : Arena -> Arena
-ev1y a = blind $ pos a
+ev1y a = motor $ pos a
 
 fromEv1y : (a : Arena) -> Lens (ev1y a) a
 fromEv1y a = MkLens id (\_, _ => ()) 
@@ -102,11 +102,11 @@ fromEv1y a = MkLens id (\_, _ => ())
 constantFunction : {t, u : Type} -> (t -> u) -> Lens (const t) (const u)
 constantFunction {t} {u} f = MkLens f (\_ => id)
 
-blindFunction : {t, u : Type} -> (t -> u) -> Lens (blind t) (blind u)
-blindFunction {t} {u} f = MkLens f (\_ => id) 
+motorFunction : {t, u : Type} -> (t -> u) -> Lens (motor t) (motor u)
+motorFunction {t} {u} f = MkLens f (\_ => id) 
 
-powerFunction : {t, u: Type} -> (t -> u) -> Lens (purepower u) (purepower t)
-powerFunction {t} {u} f = MkLens id (\_ => f)
+sensorFunction : {t, u: Type} -> (t -> u) -> Lens (sensor u) (sensor t)
+sensorFunction {t} {u} f = MkLens id (\_ => f)
 
 --- sum ---
 
@@ -164,17 +164,7 @@ prodList : List Arena -> Arena
 prodList [] = one
 prodList (a :: as) = a <**> (prodList as)
 
-
--- prod is used often: the dependent product of polynomials
-prod : (ind : Type ** ind -> Arena) -> Arena
-prod (ind ** arena) = MkArena pprod dprod
-          where
-            pprod : Type
-            pprod = (i : ind) -> pos (arena i)
-            dprod : pprod -> Type
-            dprod p = (i : ind ** dis (arena i) (p i))
-
-
+-- functoriality of prod
 prodLens : Lens a1 b1 -> Lens a2 b2 -> Lens (a1 <**> a2) (b1 <**> b2)
 prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i 
           where
@@ -183,6 +173,16 @@ prodLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
             i : (p : pos (a1 <**> a2)) -> dis (b1 <**> b2) (o p) -> dis (a1 <**> a2) p
             i (p1, p2) (Left d1)  = Left (interpret l1 p1 d1)
             i (p1, p2) (Right d2) = Right (interpret l2 p2 d2)
+
+-- prod is the dependent product of polynomials; used in both inner homs
+prod : (ind : Type ** ind -> Arena) -> Arena
+prod (ind ** arena) = MkArena pprod dprod
+          where
+            pprod : Type
+            pprod = (i : ind) -> pos (arena i)
+            dprod : pprod -> Type
+            dprod p = (i : ind ** dis (arena i) (p i))
+
 
 
 --- Juxtaposition ---
@@ -325,7 +325,7 @@ infixr 4 ^^
 (^^) a b = prod (pos a ** arena)
           where 
             arena : pos a -> Arena
-            arena p = b @@ (blind $ dis a p)
+            arena p = b @@ (motor $ dis a p)
 
 --- Dynamical systems ---
 
@@ -335,39 +335,50 @@ record Dynam where
        body  : Arena
        life  : Lens (Self state) body
 
-record BlindDynam where
-       constructor MkBlindDynam
+
+{- Technical debt:
+   MotorDynam was made because these systems "just run":
+   they don't require any input. But somehow, this 
+   should probably be done by asking a Dynam whether its
+   body is a motor or not, rather than by making a whole
+   new type.
+-}
+
+record MotorDynam where
+       constructor MkMotorDynam
        state  : Type
        output : Type
-       life   : Lens (Self state) (blind output) 
+       life   : Lens (Self state) (motor output) 
 
 
-run : (d : BlindDynam) -> (state d) -> Stream (output d)
+run : (d : MotorDynam) -> (state d) -> Stream (output d)
 run d s = (observe (life d) s) :: (run d next)
         where
           next : state d
           next = interpret (life d) s ()
 
-blindToDynam : BlindDynam -> Dynam
-blindToDynam b = MkDynam (state b) (blind (output b)) (life b)
+motorToDynam : MotorDynam -> Dynam
+motorToDynam b = MkDynam (state b) (motor (output b)) (life b)
   
+
+
 static : Dynam
-static = MkDynam () Closed (blindFunction id)
+static = MkDynam () Closed (motorFunction id)
 
 infixr 4 &&&
 (&&&) : Dynam -> Dynam -> Dynam
 (&&&) dyn1 dyn2 = MkDynam state12 body12 life12
           where
             state12 : Type
+            body12  : Arena
+            life12  : Lens (Self state12) body12
             state12 = (state dyn1, state dyn2)
-            body12 : Arena
-            body12 = (body dyn1) & (body dyn2)
-            life12 : Lens (Self state12) body12
-            life12 = MkLens o i
+            body12  = (body dyn1) & (body dyn2)
+            life12  = MkLens o i
             where
               o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
-              o (s1, s2) = (observe (life dyn1) s1, observe (life dyn2) s2)
               i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
+              o (s1, s2) = (observe (life dyn1) s1, observe (life dyn2) s2)
               i (s1, s2) (d1, d2) = 
                 (interpret (life dyn1) s1 d1, interpret (life dyn2) s2 d2)
 
@@ -378,8 +389,11 @@ juxtapose (d :: ds) = d &&& (juxtapose ds)
 install : (d : Dynam) -> (a : Arena) -> Lens (body d) a -> Dynam
 install d a l = MkDynam (state d) a (l <.> (life d))
 
-installBlind : (d : Dynam) -> (output : Type) -> Lens (body d) (blind output) -> BlindDynam
-installBlind d o l = MkBlindDynam (state d) o (l <.> (life d))
+installMotor : (d : Dynam) -> (output : Type) -> Lens (body d) (motor output) -> MotorDynam
+installMotor d o l = MkMotorDynam (state d) o (l <.> (life d))
+
+
+--- Debugging ---
 
 current : (d : Dynam) -> state d -> pos (body d)
 current d s = observe (life d) s
@@ -425,24 +439,24 @@ Prefib = juxtapose [plus, delay Integer, delay Integer]
 -}
 
 
-fibwd : Lens (body Prefib) (blind Integer)
+fibwd : Lens (body Prefib) (motor Integer)
 fibwd = MkLens observe interpret 
           where
             observe : (Integer, Integer, Integer, ()) -> Integer
-            observe (de1, pl, de2, _) = de1
             interpret : (p : (Integer, Integer, Integer, ())) -> () -> dis (body Prefib) p
+            observe (de1, pl, de2, _) = de1
             interpret (de1, pl, de2, _) = \_ => ((de1, de2), pl, de1, ())
+              -- This was a cheat. I didn't know which order to put (de1, pl, de2).
 
 
-
-Fibonacci : BlindDynam
-Fibonacci = installBlind Prefib Integer fibwd
+Fibonacci : MotorDynam
+Fibonacci = installMotor Prefib Integer fibwd
 
 FibSeq : Stream Integer
 FibSeq = run Fibonacci (1, 0, 0, ())
 
 -- take 10 FibSequence
-
+-- Slow
 
 
 
