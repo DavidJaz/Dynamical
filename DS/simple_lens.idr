@@ -32,13 +32,13 @@ idLens a = MkLens id (\_ => id)
 
 infixr 4 <.>
 (<.>) : Lens a2 a3 -> Lens a1 a2 -> Lens a1 a3
-(<.>) animate23 animate12 = MkLens obs int
+(<.>) life23 life12 = MkLens obs int
       where
         obs : pos a1 -> pos a3
-        obs = (observe animate23) . (observe animate12)
+        obs = (observe life23) . (observe life12)
 
         int : (p : pos a1) -> (dis a3 (obs p)) -> dis a1 p
-        int p = (interpret animate12 p) . (interpret animate23 (observe animate12 p))
+        int p = (interpret life12 p) . (interpret life23 (observe life12 p))
 
 --- Manipulations on Arenas ---
 
@@ -68,8 +68,8 @@ Closed = IOArena () ()
 const : Type -> Arena
 const t = IOArena Void t
 
-linear : Type -> Arena
-linear t = IOArena () t
+blind : Type -> Arena
+blind t = IOArena () t
 
 purepower : Type -> Arena
 purepower t = IOArena t ()
@@ -94,7 +94,7 @@ toEv1 : (a : Arena) -> Lens a (ev1 a)
 toEv1 a = MkLens id (\_ => absurd)
 
 ev1y : Arena -> Arena
-ev1y a = linear $ pos a
+ev1y a = blind $ pos a
 
 fromEv1y : (a : Arena) -> Lens (ev1y a) a
 fromEv1y a = MkLens id (\_, _ => ()) 
@@ -102,8 +102,8 @@ fromEv1y a = MkLens id (\_, _ => ())
 constantFunction : {t, u : Type} -> (t -> u) -> Lens (const t) (const u)
 constantFunction {t} {u} f = MkLens f (\_ => id)
 
-linearFunction : {t, u : Type} -> (t -> u) -> Lens (linear t) (linear u)
-linearFunction {t} {u} f = MkLens f (\_ => id) 
+blindFunction : {t, u : Type} -> (t -> u) -> Lens (blind t) (blind u)
+blindFunction {t} {u} f = MkLens f (\_ => id) 
 
 powerFunction : {t, u: Type} -> (t -> u) -> Lens (purepower u) (purepower t)
 powerFunction {t} {u} f = MkLens id (\_ => f)
@@ -229,12 +229,12 @@ juxtLens : (ind : Type) ->
               ((i : ind) -> Lens (a1 i) (a2 i))
               ->
               Lens (juxt ind a1) (juxt ind a2)
-juxtLens ind a1 a2 animate = MkLens obse inte 
+juxtLens ind a1 a2 life = MkLens obse inte 
           where
             obse : pos (juxt ind a1) -> pos (juxt ind a2)
-            obse p i = observe (animate i) (p i)
+            obse p i = observe (life i) (p i)
             inte : (p : pos (juxt ind a1)) -> dis (juxt ind a2) (obse p) -> dis (juxt ind a1) p
-            inte p d i = interpret (animate i) (p i) (d i)
+            inte p d i = interpret (life i) (p i) (d i)
 -}
 
 
@@ -325,57 +325,81 @@ infixr 4 ^^
 (^^) a b = prod (pos a ** arena)
           where 
             arena : pos a -> Arena
-            arena p = b @@ (linear $ dis a p)
+            arena p = b @@ (blind $ dis a p)
 
 --- Dynamical systems ---
 
 record Dynam where
        constructor MkDynam
-       state    : Type
-       body     : Arena
-       animate  : Lens (Self state) body
+       state : Type
+       body  : Arena
+       life  : Lens (Self state) body
 
+record BlindDynam where
+       constructor MkBlindDynam
+       state  : Type
+       output : Type
+       life   : Lens (Self state) (blind output) 
+
+
+run : (d : BlindDynam) -> (state d) -> Stream (output d)
+run d s = (observe (life d) s) :: (run d next)
+        where
+          next : state d
+          next = interpret (life d) s ()
+
+blindToDynam : BlindDynam -> Dynam
+blindToDynam b = MkDynam (state b) (blind (output b)) (life b)
+  
 static : Dynam
-static = MkDynam () Closed (linearFunction id)
+static = MkDynam () Closed (blindFunction id)
 
 infixr 4 &&&
 (&&&) : Dynam -> Dynam -> Dynam
-(&&&) dyn1 dyn2 = MkDynam state12 body12 animate12
+(&&&) dyn1 dyn2 = MkDynam state12 body12 life12
           where
             state12 : Type
             state12 = (state dyn1, state dyn2)
             body12 : Arena
             body12 = (body dyn1) & (body dyn2)
-            animate12 : Lens (Self state12) body12
-            animate12 = MkLens o i
+            life12 : Lens (Self state12) body12
+            life12 = MkLens o i
             where
               o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
-              o (s1, s2) = (observe (animate dyn1) s1, observe (animate dyn2) s2)
+              o (s1, s2) = (observe (life dyn1) s1, observe (life dyn2) s2)
               i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
               i (s1, s2) (d1, d2) = 
-                (interpret (animate dyn1) s1 d1, interpret (animate dyn2) s2 d2)
+                (interpret (life dyn1) s1 d1, interpret (life dyn2) s2 d2)
 
 juxtapose : List Dynam -> Dynam
 juxtapose []        = static
 juxtapose (d :: ds) = d &&& (juxtapose ds)
 
 install : (d : Dynam) -> (a : Arena) -> Lens (body d) a -> Dynam
-install d a l = MkDynam (state d) a (l <.> (animate d))
+install d a l = MkDynam (state d) a (l <.> (life d))
 
+installBlind : (d : Dynam) -> (output : Type) -> Lens (body d) (blind output) -> BlindDynam
+installBlind d o l = MkBlindDynam (state d) o (l <.> (life d))
 
+current : (d : Dynam) -> state d -> pos (body d)
+current d s = observe (life d) s
 
-
+feed : (dyn : Dynam) -> (s : state dyn) -> dis (body dyn) (observe (life dyn) s) -> state dyn
+feed dyn s d = interpret play s d
+          where 
+            play : Lens (Self (state dyn)) (body dyn)
+            play = life dyn
 
 --- Examples ---
 
 
 funcToDynam : {s : Type} -> {t : Type} -> (s -> t) -> Dynam
-funcToDynam {s} {t} f = MkDynam t bodyf animatef
+funcToDynam {s} {t} f = MkDynam t bodyf lifef
             where
               bodyf : Arena
-              animatef : Lens (Self t) bodyf
+              lifef : Lens (Self t) bodyf
               bodyf = IOArena s t
-              animatef = MkLens id (const f)
+              lifef = MkLens id (const f)
 
 
 
@@ -401,21 +425,23 @@ Prefib = juxtapose [plus, delay Integer, delay Integer]
 -}
 
 
-fibwd : Lens (body Prefib) (linear Integer)
+fibwd : Lens (body Prefib) (blind Integer)
 fibwd = MkLens observe interpret 
           where
             observe : (Integer, Integer, Integer, ()) -> Integer
-            observe (pl, de1, de2, _) = de2
+            observe (de1, pl, de2, _) = de1
             interpret : (p : (Integer, Integer, Integer, ())) -> () -> dis (body Prefib) p
-            interpret (pl, de1, de2, _) = \_ => ((de1, de2), pl, de1, ())
+            interpret (de1, pl, de2, _) = \_ => ((de1, de2), pl, de1, ())
 
 
 
-Fibonacci : Dynam
-Fibonacci = install Prefib (linear Integer) fibwd
+Fibonacci : BlindDynam
+Fibonacci = installBlind Prefib Integer fibwd
 
+FibSeq : Stream Integer
+FibSeq = run Fibonacci (1, 0, 0, ())
 
-
+-- take 10 FibSequence
 
 
 
@@ -521,7 +547,7 @@ juxtapose ind dynam = MkDynam stjux bojux lejux
             bod = body . dynam
             sta = state . dynam
             sel = Self . sta
-            len i = animate (dynam i)
+            len i = life (dynam i)
             stjux : Type
             bojux : Arena
             lejux : Lens (Self stjux) bojux
