@@ -39,8 +39,13 @@ BusyBeaver = MkSystem readout update
     
 Add : PureSystem Int (SimpleInterface Int (Int, Int)) 
 Add = boxUp (pure . uncurry (+))
+<<<<<<< HEAD
 
     {-     
+=======
+    
+{- 
+>>>>>>> 1d23e3b576cc2fa4ed8a28084c2914af2c9f2e15
 wiring1 : Lens Identity (interfaceOf (Add <+> (OneStepDelay Int))) (ForwardInterface Int)
 wiring1 = MkLens fst b
   where
