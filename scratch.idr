@@ -1,6 +1,8 @@
 module Main 
 
 import Control.Monad.Identity
+import Data.Vect
+
 import lens
 import system
 -- Example 1:
@@ -37,7 +39,8 @@ BusyBeaver = MkSystem readout update
     
 Add : PureSystem Int (SimpleInterface Int (Int, Int)) 
 Add = boxUp (pure . uncurry (+))
-    
+
+    {-     
 wiring1 : Lens Identity (interfaceOf (Add <+> (OneStepDelay Int))) (ForwardInterface Int)
 wiring1 = MkLens fst b
   where
@@ -47,7 +50,7 @@ wiring1 = MkLens fst b
     b :  (x : output (interfaceOf (Add <+> (OneStepDelay Int))))
       -> input (ForwardInterface $ output Interface1) (f x)
       -> Identity $ input (interfaceOf (Add <+> (OneStepDelay Int))) x
-
+-}
 
 
 nextTest : Selection Interface1
@@ -87,6 +90,27 @@ LK = MkSystem id update
       where 
         newrabbits = (rabbits s) + (rabbitBirth p)*(rabbits s) - (interaction p) * (rabbits s) * (foxes s)
         newfoxes   = (foxes s)   + (interaction p) * (rabbits s) * (foxes s) - (foxDeath p) * (foxes s) 
+
+data TicTacToeSquare = TTTEmpty | TTTX | TTTO
+
+TicTacToeBoard : Type
+TicTacToeBoard = Vect 3 (Vect 3 TicTacToeSquare) 
+
+TicTacToeMoves : TicTacToeBoard -> Type
+TicTacToeMoves _ = TicTacToeBoard
+
+TicTacToeInterface : Interface
+TicTacToeInterface = MkInterface TicTacToeBoard TicTacToeMoves
+
+
+
+
+
+
+
+
+
+
 
 
 
