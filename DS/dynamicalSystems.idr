@@ -329,14 +329,6 @@ infixr 4 ^^
 
 --- Dynamical systems ---
 
-JazDynam : (state : Type) -> (body : Arena) -> Type
-JazDynam state body = Lens (Self state) body
-
-JazMotor : (state : Type) -> (output : Type) -> Type
-JazMotor state output = JazDynam state (motor output)
-
-JazMotorToDynam : JazMotor s o -> JazDynam s (motor o)
-JazMotorToDynam = id
 
 record Dynam where
        constructor MkDynam
@@ -350,6 +342,17 @@ record Dynam where
    should probably be done by asking a Dynam whether its
    body is a motor or not, rather than by making a whole
    new type.
+
+   David suggests the following:
+      JazDynam : (state : Type) -> (body : Arena) -> Type
+      JazDynam state body = Lens (Self state) body
+
+      JazMotor : (state : Type) -> (output : Type) -> Type
+      JazMotor state output = JazDynam state (motor output)
+
+      JazMotorToDynam : JazMotor s o -> JazDynam s (motor o)
+      JazMotorToDynam = id
+
 -}
 
 record MotorDynam where
@@ -357,6 +360,7 @@ record MotorDynam where
        state  : Type
        output : Type
        life   : Lens (Self state) (motor output) 
+
 
 
 run : (d : MotorDynam) -> (state d) -> Stream (output d)
@@ -434,7 +438,7 @@ plus = funcToDynam (uncurry (+))
 
 
 Prefib : Dynam
-Prefib = juxtapose [plus, delay Integer, delay Integer]
+Prefib = plus &&& (delay Integer)
 
 {-
 (&) a b = MkArena posab disab
@@ -450,21 +454,20 @@ Prefib = juxtapose [plus, delay Integer, delay Integer]
 fibwd : Lens (body Prefib) (motor Integer)
 fibwd = MkLens observe interpret 
           where
-            observe : (Integer, Integer, Integer, ()) -> Integer
-            interpret : (p : (Integer, Integer, Integer, ())) -> () -> dis (body Prefib) p
-            observe (de1, pl, de2, _) = de1
-            interpret (de1, pl, de2, _) = \_ => ((de1, de2), pl, de1, ())
-              -- This was a cheat. I didn't know which order to put (de1, pl, de2).
+            observe : (Integer, Integer) -> Integer
+            interpret : (p : (Integer, Integer)) -> () -> dis (body Prefib) p
+            observe (pl, de) = de
+            interpret (pl, de) = \_ => ((de, pl), pl)
 
 
 Fibonacci : MotorDynam
 Fibonacci = installMotor Prefib Integer fibwd
 
 FibSeq : Stream Integer
-FibSeq = run Fibonacci (1, 0, 0, ())
+FibSeq = run Fibonacci (1, 0)
 
--- take 10 FibSequence
--- Slow
+-- take 10 FibSeq
+
 
 
 
