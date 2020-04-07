@@ -329,12 +329,20 @@ infixr 4 ^^
 
 --- Dynamical systems ---
 
+JazDynam : (state : Type) -> (body : Arena) -> Type
+JazDynam state body = Lens (Self state) body
+
+JazMotor : (state : Type) -> (output : Type) -> Type
+JazMotor state output = JazDynam state (motor output)
+
+JazMotorToDynam : JazMotor s o -> JazDynam s (motor o)
+JazMotorToDynam = id
+
 record Dynam where
        constructor MkDynam
        state : Type
        body  : Arena
        life  : Lens (Self state) body
-
 
 {- Technical debt:
    MotorDynam was made because these systems "just run":
