@@ -229,37 +229,6 @@ juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
             i : (p : pos (a1 & a2)) -> dis (b1 & b2) (o p) -> dis (a1 & a2) p
             i (p1, p2) (d1, d2) = (interpret l1 p1 d1, interpret l2 p2 d2)
 
-
-{-
-juxtSelf : (t : List Type) -> Lens (Self (foldr Pair () t)) (juxtList (map Self t))
-juxtSelf t = MkLens id i
-          where
-            o : (foldr Pair () t) -> pos (juxtList (map Self t))
-
-            i : (p : pos (Self (foldr Pair () t))) -> dis (juxtList (map Self t)) (o p) -> dis (Self (foldr Pair () t)) p
-
-juxtSelf : (ind : Type) -> (s : ind -> Type) -> Lens (Self ((i : ind) -> s i)) (juxt ind (Self . s))
-juxtSelf ind s = MkLens id (\_ => id)
--}
-
-
-{-
-juxtLens : (ind : Type) -> 
-              (a1 : ind -> Arena) ->
-              (a2 : ind -> Arena) -> 
-              ((i : ind) -> Lens (a1 i) (a2 i))
-              ->
-              Lens (juxt ind a1) (juxt ind a2)
-juxtLens ind a1 a2 life = MkLens obse inte 
-          where
-            obse : pos (juxt ind a1) -> pos (juxt ind a2)
-            obse p i = observe (life i) (p i)
-            inte : (p : pos (juxt ind a1)) -> dis (juxt ind a2) (obse p) -> dis (juxt ind a1) p
-            inte p d i = interpret (life i) (p i) (d i)
--}
-
-
-
 --- Circle product ---
 
 infixr 4 @@
@@ -347,6 +316,14 @@ infixr 4 ^^
           where 
             arena : pos a -> Arena
             arena p = b @@ (motor $ dis a p)
+
+eval : {a : Arena} -> {b : Arena} -> Lens (a & (b ^^ a)) b
+eval {a} {b} = MkLens obs int
+          where
+            obs : (pos a, pos (b ^^ a)) -> pos b
+            int : (p : (pos a, pos (b ^^ a))) -> dis b (obs p) -> dis (a & (b ^^ a)) p
+            obs (pa, pab) = ?o
+            int p d = ?i
 
 --- Dynamical systems ---
 
@@ -584,6 +561,34 @@ juxtapose ind dynam = MkDynam stjux bojux lejux
             stjux = (i : ind) -> sta i
             bojux = juxt ind bod
             lejux = (juxtLens ind sel bod len) <.> (juxtSelf ind sta)
+-}
+
+{-
+juxtSelf : (t : List Type) -> Lens (Self (foldr Pair () t)) (juxtList (map Self t))
+juxtSelf t = MkLens id i
+          where
+            o : (foldr Pair () t) -> pos (juxtList (map Self t))
+
+            i : (p : pos (Self (foldr Pair () t))) -> dis (juxtList (map Self t)) (o p) -> dis (Self (foldr Pair () t)) p
+
+juxtSelf : (ind : Type) -> (s : ind -> Type) -> Lens (Self ((i : ind) -> s i)) (juxt ind (Self . s))
+juxtSelf ind s = MkLens id (\_ => id)
+-}
+
+
+{-
+juxtLens : (ind : Type) -> 
+              (a1 : ind -> Arena) ->
+              (a2 : ind -> Arena) -> 
+              ((i : ind) -> Lens (a1 i) (a2 i))
+              ->
+              Lens (juxt ind a1) (juxt ind a2)
+juxtLens ind a1 a2 life = MkLens obse inte 
+          where
+            obse : pos (juxt ind a1) -> pos (juxt ind a2)
+            obse p i = observe (life i) (p i)
+            inte : (p : pos (juxt ind a1)) -> dis (juxt ind a2) (obse p) -> dis (juxt ind a1) p
+            inte p d i = interpret (life i) (p i) (d i)
 -}
 
 --- Distributivity ---
