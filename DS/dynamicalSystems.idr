@@ -75,7 +75,7 @@ sensor : Type -> Arena
 sensor t = IOArena t ()
 
 ev0 : Arena -> Arena
-ev0 a = const (AsFunctor a Void)
+ev0 a = const $ AsFunctor a Void
 
 fromEv0 : (a : Arena) -> Lens (ev0 a) a
 fromEv0 a = MkLens o i
@@ -88,7 +88,7 @@ fromEv0 a = MkLens o i
             i (p ** f) = f
 
 ev1 : Arena -> Arena
-ev1 a = const $ pos a
+ev1 a = const $ pos a -- = const $ AsFunctor a ()
 
 toEv1 : (a : Arena) -> Lens a (ev1 a)
 toEv1 a = MkLens id (\_ => absurd)
@@ -144,6 +144,16 @@ sumLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
             i (Left p1) d1  = interpret l1 p1 d1
             i (Right p2) d2 = interpret l2 p2 d2
 
+copair : {a1 : Arena} -> {a2 : Arena} -> {b : Arena} -> 
+          Lens a1 b -> Lens a2 b -> Lens (a1 <++> a2) b
+copair {a1} {a2} {b} l1 l2 = MkLens obs int
+          where
+            obs : pos (a1 <++> a2) -> pos b
+            int : (p : pos (a1 <++> a2)) -> dis b (obs p) -> dis (a1 <++> a2) p          
+            obs (Left  p1) = observe l1 p1
+            obs (Right p2) = observe l2 p2
+            int (Left  p1) d1 = interpret l1 p1 d1
+            int (Right p2) d2 = interpret l2 p2 d2
 
 --- product ---
 
@@ -162,6 +172,7 @@ infixr 4 <**>
 
 prodList : List Arena -> Arena
 prodList [] = one
+prodList [a] = a
 prodList (a :: as) = a <**> (prodList as)
 
 -- functoriality of prod
@@ -183,7 +194,15 @@ prod (ind ** arena) = MkArena pprod dprod
             dprod : pprod -> Type
             dprod p = (i : ind ** dis (arena i) (p i))
 
-
+pair : {a : Arena} -> {b1 : Arena} -> {b2 : Arena} -> 
+        Lens a b1 -> Lens a b2 -> Lens a (b1 <**> b2)
+pair {a} {b1} {b2} l1 l2 = MkLens obs int
+          where
+            obs : pos a -> (pos b1, pos b2)
+            obs p = (observe l1 p, observe l2 p)
+            int : (p : pos a) -> dis (b1 <**> b2) (obs p) -> dis a p
+            int p (Left d1)  = interpret l1 p d1
+            int p (Right d2) = interpret l2 p d2
 
 --- Juxtaposition ---
 
@@ -198,7 +217,9 @@ infixr 4 &
             disab (pa, pb) = (dis a pa, dis b pb)
 
 juxtList : List Arena -> Arena
-juxtList = foldr (&) Closed
+juxtList [] = Closed
+juxtList [a] = a
+juxtList (a :: as) = a & (juxtList as)
 
 juxtLens : Lens a1 b1 -> Lens a2 b2 -> Lens (a1 & a2) (b1 & b2)
 juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
@@ -336,14 +357,8 @@ record Dynam where
        body  : Arena
        life  : Lens (Self state) body
 
-{- Technical debt:
-   MotorDynam was made because these systems "just run":
-   they don't require any input. But somehow, this 
-   should probably be done by asking a Dynam whether its
-   body is a motor or not, rather than by making a whole
-   new type.
-
-   David suggests the following:
+{- 
+   David Jaz suggests the following:
       JazDynam : (state : Type) -> (body : Arena) -> Type
       JazDynam state body = Lens (Self state) body
 
@@ -396,6 +411,7 @@ infixr 4 &&&
 
 juxtapose : List Dynam -> Dynam
 juxtapose []        = static
+juxtapose [d]       = d
 juxtapose (d :: ds) = d &&& (juxtapose ds)
 
 install : (d : Dynam) -> (a : Arena) -> Lens (body d) a -> Dynam
@@ -440,17 +456,6 @@ plus = funcToDynam (uncurry (+))
 Prefib : Dynam
 Prefib = plus &&& (delay Integer)
 
-{-
-(&) a b = MkArena posab disab
-          where 
-            posab : Type
-            posab = (pos a, pos b)
-            disab : posab -> Type
-            disab (pa, pb) = (dis a pa, dis b pb)
-
--}
-
-
 fibwd : Lens (body Prefib) (motor Integer)
 fibwd = MkLens observe interpret 
           where
@@ -464,7 +469,7 @@ Fibonacci : MotorDynam
 Fibonacci = installMotor Prefib Integer fibwd
 
 FibSeq : Stream Integer
-FibSeq = run Fibonacci (1, 0)
+FibSeq = run Fibonacci (1, 1)
 
 -- take 10 FibSeq
 
