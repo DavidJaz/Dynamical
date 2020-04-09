@@ -1,5 +1,6 @@
 module Lens
 
+import Data.Vect
 %access public export
 
 --- Code by David I. Spivak and David Jaz Myers
@@ -50,8 +51,6 @@ AsFunctor a y = (p : pos a ** dis a p -> y)
 
 
 
-
-
 --- Special Arenas ---
 
 IOArena : (i : Type) -> (o : Type) -> Arena --positions as output and
@@ -62,6 +61,9 @@ Self s = IOArena s s
 
 Closed : Arena
 Closed = IOArena () ()
+
+
+            
 
 --- Reflections to Type ---
 
@@ -107,6 +109,13 @@ motorFunction {t} {u} f = MkLens f (\_ => id)
 
 sensorFunction : {t, u: Type} -> (t -> u) -> Lens (sensor u) (sensor t)
 sensorFunction {t} {u} f = MkLens id (\_ => f)
+
+reflect : Arena -> Type
+reflect a = Lens a Closed
+
+auto : {m : Type} -> reflect (motor m)
+auto {m} = MkLens (\_ => ()) (\_, _ => ())
+
 
 --- sum ---
 
@@ -229,6 +238,8 @@ juxtLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
             i : (p : pos (a1 & a2)) -> dis (b1 & b2) (o p) -> dis (a1 & a2) p
             i (p1, p2) (d1, d2) = (interpret l1 p1 d1, interpret l2 p2 d2)
 
+
+
 --- Circle product ---
 
 infixr 4 @@
@@ -254,21 +265,18 @@ circLens {a1} {b1} {a2} {b2} l1 l2 = MkLens o i
               e1 : dis a1 p 
               e1 = interpret l1 p d1
 
-CircPow : Nat -> Arena -> Arena
-CircPow  Z    _ = Closed
-CircPow (S n) a = a @@ CircPow n a
+CircPow : Arena -> Nat -> Arena
+CircPow _  Z     = Closed
+CircPow a (S n) = a @@ CircPow a n 
 
 CircPowLens : {a : Arena} -> {b : Arena} -> 
-              (n : Nat) -> Lens a b -> Lens (CircPow n a) (CircPow n b)
-CircPowLens {a} {b}  Z    _    = idLens Closed 
-CircPowLens {a} {b} (S n) lens = ?circpowlens --circLens {a} {b} {na} {nb} lens nlens
-          where
-            na    : Arena
-            nb    : Arena
-            nlens : Lens na nb
-            na    = ?circa --CircPow n a
-            nb    = ?circb --CircPow n b
-            nlens = ?circc --CircPowLens {a} {b} n lens
+              Lens a b -> (n : Nat) -> Lens (CircPow a n) (CircPow b n)
+CircPowLens {a} {b} _     Z    = idLens Closed 
+CircPowLens {a} {b} lens (S n) = circLens lens (CircPowLens lens n)
+
+motorPow : (t : Type) -> (n : Nat) -> Lens (CircPow (motor t) n) (motor (Vect n t))
+motorPow t Z = MkLens (\_ => Nil) (\_, _ => ())
+
 
 --- Selves are comonoids ---
 
@@ -288,7 +296,9 @@ comult s = MkLens o i
             i : (x : s) -> (dis ((Self s) @@ (Self s)) (o x)) -> s
             i x (d1 ** d2) = d2
 
-
+comultPow : (s : Type) -> (n : Nat) -> Lens (Self s) (CircPow (Self s) n)
+comultPow s  Z    = counit s
+comultPow s (S n) = (circLens (idLens (Self s)) (comultPow s n)) <.> (comult s)
 
 --- Duoidal ---
 
@@ -347,39 +357,18 @@ eval {a} {b} = MkLens obs int
 
 record Dynam where
        constructor MkDynam
-       states : Type
-       body  : Arena
-       work  : Lens (Self states) body
+       state : Type
+       body   : Arena
+       work   : Lens (Self state) body
 
-{- 
-   David Jaz suggests the following:
-      JazDynam : (states : Type) -> (body : Arena) -> Type
-      JazDynam states body = Lens (Self states) body
-
-      JazMotor : (states : Type) -> (output : Type) -> Type
-      JazMotor states output = JazDynam states (motor output)
-
-      JazMotorToDynam : JazMotor s o -> JazDynam s (motor o)
-      JazMotorToDynam = id
-
--}
-
-record MotorDynam where
-       constructor MkMotorDynam
-       states  : Type
-       output : Type
-       work   : Lens (Self states) (motor output) 
-
-
-
-run : (d : MotorDynam) -> (states d) -> Stream (output d)
-run d s = (observe (work d) s) :: (run d next)
+run : (d : Dynam) -> reflect (body d) -> (state d) -> Stream (pos $ body d)
+run d e s = outp :: (run d e next)
         where
-          next : states d
-          next = interpret (work d) s ()
+          outp : pos $ body d
+          next : state d
+          outp = observe (work d) s
+          next = interpret (work d) s $ interpret e outp ()
 
-motorToDynam : MotorDynam -> Dynam
-motorToDynam b = MkDynam (states b) (motor (output b)) (work b)
   
 
 
@@ -388,17 +377,17 @@ static = MkDynam () Closed (motorFunction id)
 
 infixr 4 &&&
 (&&&) : Dynam -> Dynam -> Dynam
-(&&&) dyn1 dyn2 = MkDynam states12 body12 work12
+(&&&) dyn1 dyn2 = MkDynam state12 body12 work12
           where
-            states12 : Type
+            state12 : Type
             body12  : Arena
-            work12  : Lens (Self states12) body12
-            states12 = (states dyn1, states dyn2)
-            body12  = (body dyn1) & (body dyn2)
-            work12  = MkLens o i
+            work12  : Lens (Self state12) body12
+            state12 = (state dyn1, state dyn2)
+            body12   = (body dyn1) & (body dyn2)
+            work12   = MkLens o i
             where
-              o : (states dyn1, states dyn2) -> (pos (body dyn1), pos (body dyn2))
-              i : (s12 : (states dyn1, states dyn2)) -> dis body12 (o s12) -> states12 
+              o : (state dyn1, state dyn2) -> (pos (body dyn1), pos (body dyn2))
+              i : (s12 : (state dyn1, state dyn2)) -> dis body12 (o s12) -> state12 
               o (s1, s2) = (observe (work dyn1) s1, observe (work dyn2) s2)
               i (s1, s2) (d1, d2) = 
                 (interpret (work dyn1) s1 d1, interpret (work dyn2) s2 d2)
@@ -409,38 +398,29 @@ juxtapose [d]       = d
 juxtapose (d :: ds) = d &&& (juxtapose ds)
 
 install : (d : Dynam) -> (a : Arena) -> Lens (body d) a -> Dynam
-install d a l = MkDynam (states d) a (l <.> (work d))
+install d a l = MkDynam (state d) a (l <.> (work d))
 
-installMotor : (d : Dynam) -> (output : Type) -> Lens (body d) (motor output) -> MotorDynam
-installMotor d o l = MkMotorDynam (states d) o (l <.> (work d))
+--installMotor : (d : Dynam) -> (output : Type) -> Lens (body d) (motor output) -> MotorDynam
+--installMotor d o l = MkMotorDynam (state d) o (l <.> (work d))
 
-speed2x : Dynam -> Dynam
-speed2x dyn = MkDynam sameStates body2x work2x
+speedUp : Dynam -> Nat -> Dynam
+speedUp dyn n = MkDynam (state dyn) fastBody fastWork
             where
-              sameStates : Type
-              sameSelf   : Arena
-              body2x     : Arena
-              work2x     : Lens sameSelf body2x
-              sameStates = states dyn
-              sameSelf   = Self sameStates
-              body2x       = (body dyn) @@ (body dyn)
-              work2x     = ?speed --(comult sameSelf) <.> 
+              fastBody   : Arena
+              fastWork   : Lens (Self $ state dyn) fastBody
+              fastBody   = CircPow (body dyn) n
+              fastWork   = CircPowLens (work dyn) n <.> comultPow (state dyn) n
 
-
-
-speedUp : Dynam -> (factor : Nat) -> Dynam
-speedUp dyn Z     = static
-speedUp dyn (S n) = ?speedup
 
 --- Debugging ---
 
-current : (d : Dynam) -> states d -> pos (body d)
+current : (d : Dynam) -> state d -> pos (body d)
 current d s = observe (work d) s
 
-feed : (dyn : Dynam) -> (s : states dyn) -> dis (body dyn) (observe (work dyn) s) -> states dyn
+feed : (dyn : Dynam) -> (s : state dyn) -> dis (body dyn) (observe (work dyn) s) -> state dyn
 feed dyn s d = interpret play s d
           where 
-            play : Lens (Self (states dyn)) (body dyn)
+            play : Lens (Self (state dyn)) (body dyn)
             play = work dyn
 
 --- Examples ---
@@ -476,11 +456,12 @@ fibwd = MkLens observe interpret
             interpret (pl, de) = \_ => ((de, pl), pl)
 
 
-Fibonacci : MotorDynam
-Fibonacci = installMotor Prefib Integer fibwd
+Fibonacci : Dynam
+Fibonacci = install Prefib (motor Integer) fibwd
+
 
 FibSeq : Stream Integer
-FibSeq = run Fibonacci (1, 1)
+FibSeq = run Fibonacci auto (1, 1)
 
 -- take 10 FibSeq
 
@@ -489,30 +470,36 @@ FibSeq = run Fibonacci (1, 1)
 
 -- Exponential growth
 
-Reals : Type
-Reals = Double   -- let's pretend that Idris floats is the type of real numbers.
+ 
 
-MotorReals : Arena
-MotorReals = (motor Reals)
-
-PreDiffeq : Int -> (Reals -> Reals)-> Dynam
-PreDiffeq ll f = MkDynam Reals MotorReals lens 
+PreDiffeq : Nat -> (Double -> Double)-> Dynam
+PreDiffeq ll f = MkDynam Double (motor Double) lens 
             where 
-              lens : Lens (Self Reals) MotorReals
+              lens : Lens (Self Double) (motor Double)
               lens = MkLens id interp
               where
-                l : Reals
-                l = cast ll
-                interp : Reals -> () -> Reals
+                l : Double
+                l = cast $ toIntNat ll
+                interp : Double -> () -> Double
                 interp x _ = x + (f x)/l
 
+Diffeq : Nat -> (Double -> Double) -> Dynam
+Diffeq n f = install fastdyn fastbody lens --argh, should be same states as PreDiffeq!!
+        where
+          fastdyn : Dynam
+          fastdyn = speedUp (PreDiffeq n f) n
+          fastbody : Arena
+          fastbody = motor (Vect n Double)
+          lens : Lens (CircPow (motor Double) n) fastbody
+          lens = motorPow Double n
 
-Diffeq : Int -> (Reals -> Reals)-> Dynam
---Diffeq l f = speedUp l PreDiffeq
-
-
-
-
+DiffStream : (n : Nat) -> (f : Double -> Double) -> Stream (pos (body (Diffeq n f)))
+DiffStream n f = run (Diffeq n f) refl start
+        where
+          start : state (Diffeq n f)
+          --start = 1.0                    --argh, should work
+          refl  : reflect (body (Diffeq n f))
+          --refl = auto                    --argh, should work
 
 
 
@@ -598,7 +585,7 @@ juxtapose ind dynam = MkDynam stjux bojux lejux
             sel : ind -> Arena
             len : (i : ind) -> Lens (sel i) (bod i)
             bod = body . dynam
-            sta = states . dynam
+            sta = state . dynam
             sel = Self . sta
             len i = work (dynam i)
             stjux : Type
