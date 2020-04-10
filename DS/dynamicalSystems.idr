@@ -123,6 +123,34 @@ enclose a = Lens a Closed
 auto : {m : Type} -> enclose (motor m)
 auto {m} = MkLens (\_ => ()) (\_, _ => ())
 
+--- functors and monads ---
+
+lift : (f : Type -> Type) -> Functor f => Arena -> Arena
+lift f ar = MkArena (pos ar) fdis
+          where
+            fdis : (p : pos ar) -> Type
+            fdis p = f $ dis ar p
+
+LiftLens : {a, b : Arena} -> (f : Type -> Type) -> Functor f => 
+           Lens a b -> Lens (lift f a) (lift f b) 
+LiftLens {a} {b} f lens = MkLens (observe lens) int
+          where
+            int : (p : pos a) -> f $ dis b (observe lens p) -> f $ dis a p 
+            int p = map $ interpret lens p
+
+extract : {a : Arena} -> (f : Type -> Type) -> Monad f =>
+            Lens (lift f a) a
+extract {a} f = MkLens id pur 
+          where
+            pur : (p : pos a) -> dis a p -> dis (lift f a) p
+            pur p = pure
+
+extend : {a : Arena} -> (f : Type -> Type) -> Monad f =>
+            Lens (lift f a) (lift f (lift f a))
+extend {a} f = MkLens id joi
+          where
+            joi : (p : pos a) -> dis (lift f (lift f a)) p -> dis (lift f a) p
+            joi p = join  
 
 --- sum ---
 
